@@ -338,6 +338,30 @@ export function ProductDetailPage() {
     moderateMutation.mutate({ action: 'approve', price: values.price, boxPrice: values.boxPrice, reason: values.reason });
   };
 
+  const handleUnitPriceChange = (value: number | null) => {
+    if (!product) return;
+
+    if (value == null) {
+      approveForm.setFieldsValue({ boxPrice: undefined });
+      return;
+    }
+
+    const calculatedBoxPrice = Number((value * product.itemsPerBox).toFixed(2));
+    approveForm.setFieldsValue({ boxPrice: calculatedBoxPrice });
+  };
+
+  const handleBoxPriceChange = (value: number | null) => {
+    if (!product) return;
+
+    if (value == null) {
+      approveForm.setFieldsValue({ price: undefined });
+      return;
+    }
+
+    const calculatedUnitPrice = Number((value / product.itemsPerBox).toFixed(2));
+    approveForm.setFieldsValue({ price: calculatedUnitPrice });
+  };
+
   const handleRejectSubmit = async () => {
     const values = await rejectForm.validateFields();
     moderateMutation.mutate({ action: 'reject', reason: values.reason });
@@ -518,10 +542,10 @@ export function ProductDetailPage() {
             label="Финальная цена за штуку (₽)"
             rules={[{ required: true, message: 'Обязательно' }, { type: 'number', min: 0.01, message: 'Должна быть больше 0' }]}
           >
-            <InputNumber min={0.01} step={0.01} style={{ width: '100%' }} />
+            <InputNumber min={0.01} step={0.01} style={{ width: '100%' }} onChange={handleUnitPriceChange} />
           </Form.Item>
           <Form.Item name="boxPrice" label="Финальная цена за коробку (₽)">
-            <InputNumber min={0} step={0.01} style={{ width: '100%' }} />
+            <InputNumber min={0} step={0.01} style={{ width: '100%' }} onChange={handleBoxPriceChange} />
           </Form.Item>
           <Form.Item name="reason" label="Комментарий (необязательно)">
             <Input.TextArea rows={2} placeholder="Заметка для поставщика" />
