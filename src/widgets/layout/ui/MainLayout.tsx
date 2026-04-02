@@ -115,6 +115,7 @@ export function MainLayout() {
                 itemBorderRadius: isMobile ? 12 : 8,
                 itemMarginInline: isMobile ? 6 : 4,
                 itemMarginBlock: isMobile ? 6 : 4,
+                iconMarginInlineEnd: isMobile ? 0 : 10,
                 itemSelectedBg: '#2b3f68',
                 itemHoverBg: '#1f2f4a',
               },
@@ -128,9 +129,10 @@ export function MainLayout() {
             items={menuItems}
             onClick={({ key }) => navigate(key)}
             style={{
-              paddingRight: isMobile ? 10 : undefined,
+              paddingRight: isMobile ? 0 : undefined,
               textAlign: isMobile ? 'center' : undefined,
             }}
+            inlineIndent={isMobile ? 0 : 24}
           />
         </ConfigProvider>
       </Sider>

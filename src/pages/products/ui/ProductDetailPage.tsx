@@ -120,11 +120,20 @@ function InfoCard({ product, viewerRole, isMobile }: { product: Product; viewerR
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Name + status */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <Title level={isMobile ? 4 : 3} style={{ margin: 0, color: '#0f172a', flex: 1 }}>
+        <div>
+          <Title
+            level={isMobile ? 5 : 3}
+            style={{
+              margin: 0,
+              color: '#0f172a',
+              whiteSpace: 'normal',
+              overflowWrap: 'anywhere',
+              wordBreak: 'break-word',
+            }}
+          >
             {product.name}
           </Title>
-          <Space size={6} wrap>
+          <Space size={6} wrap style={{ marginTop: 10 }}>
             <Tag
               style={{
                 background: product.isActive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
@@ -194,28 +203,28 @@ function InfoCard({ product, viewerRole, isMobile }: { product: Product; viewerR
           }}
         >
           <div>
-            <Text style={{ color: '#64748b', fontSize: 12, display: 'block' }}>Цена за штуку</Text>
-            <Text strong style={{ color: '#4f46e5', fontSize: 22, lineHeight: 1.3 }}>
+            <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>Цена за штуку</Text>
+            <Text strong style={{ color: '#4f46e5', fontSize: isMobile ? 18 : 22, lineHeight: 1.3 }}>
               {unitPrice.toLocaleString('ru-RU')} ₽
             </Text>
           </div>
           {displayBoxPrice != null && displayBoxPrice > 0 ? (
             <div>
-              <Text style={{ color: '#64748b', fontSize: 12, display: 'block' }}>Цена за коробку</Text>
-              <Text strong style={{ color: '#0f172a', fontSize: 20, lineHeight: 1.3 }}>
+              <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>Цена за коробку</Text>
+              <Text strong style={{ color: '#0f172a', fontSize: isMobile ? 17 : 20, lineHeight: 1.3 }}>
                 {displayBoxPrice.toLocaleString('ru-RU')} ₽
               </Text>
             </div>
           ) : null}
           <div>
-            <Text style={{ color: '#64748b', fontSize: 12, display: 'block' }}>В коробке</Text>
-            <Text strong style={{ color: '#0f172a', fontSize: 20, lineHeight: 1.3 }}>
+            <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>В коробке</Text>
+            <Text strong style={{ color: '#0f172a', fontSize: isMobile ? 17 : 20, lineHeight: 1.3 }}>
               {product.itemsPerBox} шт.
             </Text>
           </div>
           <div>
-            <Text style={{ color: '#64748b', fontSize: 12, display: 'block' }}>Остаток</Text>
-            <Text strong style={{ color: '#0f172a', fontSize: 20, lineHeight: 1.3 }}>
+            <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>Остаток</Text>
+            <Text strong style={{ color: '#0f172a', fontSize: isMobile ? 17 : 20, lineHeight: 1.3 }}>
               {product.stockQuantity.toLocaleString('ru-RU')} шт.
             </Text>
           </div>
