@@ -1,4 +1,4 @@
-import { Card, Form, Input, Button, Typography, Modal, message, Avatar, Space, Tag, Descriptions, Empty, Spin, Tooltip } from 'antd';
+import { Card, Form, Input, Button, Typography, Modal, message, Avatar, Space, Tag, Descriptions, Empty, Spin, Tooltip, Grid } from 'antd';
 import { CameraOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
@@ -610,6 +610,9 @@ function getInitialEmployeeAdminValues(user: User): EmployeeAdminFormValues {
 export function ProfilePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.sm;
+  const isTablet = Boolean(screens.sm && !screens.lg);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -920,12 +923,21 @@ export function ProfilePage() {
   const additionalFields = buildFields(userRecord, hiddenTopLevelKeys);
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <Typography.Title level={4} style={{ marginBottom: 0 }}>Профиль</Typography.Title>
+    <div style={{ display: 'grid', gap: isMobile ? 12 : 16 }}>
+      <Typography.Title level={isMobile ? 5 : 4} style={{ marginBottom: 0 }}>Профиль</Typography.Title>
 
       <Card variant="borderless" style={{ boxShadow: '0 10px 30px rgba(0, 0, 0, 0.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <Space size={16}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: isMobile ? 'stretch' : 'center',
+            justifyContent: 'space-between',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? 12 : 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Space size={isMobile ? 12 : 16} style={{ width: isMobile ? '100%' : undefined }}>
             <Tooltip title={isEditMode ? 'Загрузить аватар' : (user.avatar ? 'Просмотреть аватар' : undefined)}>
               <div
                 style={{ position: 'relative', display: 'inline-block', cursor: 'pointer', flexShrink: 0 }}
@@ -971,29 +983,40 @@ export function ProfilePage() {
                 />
               </div>
             </Tooltip>
-            <div>
-              <Typography.Title level={5} style={{ margin: 0 }}>{userName}</Typography.Title>
-              <Space size={8} style={{ marginTop: 8 }}>
+            <div style={{ minWidth: 0 }}>
+              <Typography.Title level={5} style={{ margin: 0, wordBreak: 'break-word' }}>{userName}</Typography.Title>
+              <Space size={8} style={{ marginTop: 8, flexWrap: 'wrap' }}>
                 <Tag color="blue">{getRoleLabel(user.role)}</Tag>
-                {user.email && <Typography.Text type="secondary">{user.email}</Typography.Text>}
+                {user.email && (
+                  <Typography.Text type="secondary" style={{ wordBreak: 'break-all' }}>
+                    {user.email}
+                  </Typography.Text>
+                )}
               </Space>
             </div>
           </Space>
 
-          <Space wrap>
+          <Space
+            wrap
+            direction={isMobile ? 'vertical' : 'horizontal'}
+            style={{ width: isMobile ? '100%' : undefined }}
+          >
             {!isEditMode ? (
-              <Button type="primary" onClick={() => setIsEditMode(true)}>
+              <Button type="primary" block={isMobile} onClick={() => setIsEditMode(true)}>
                 Редактировать данные
               </Button>
             ) : (
-              <Button onClick={() => {
-                setIsEditMode(false);
-                setPendingBindToken(null);
-              }}>
+              <Button
+                block={isMobile}
+                onClick={() => {
+                  setIsEditMode(false);
+                  setPendingBindToken(null);
+                }}
+              >
                 Отмена
               </Button>
             )}
-            <Button onClick={() => setPasswordModalOpen(true)}>
+            <Button block={isMobile} onClick={() => setPasswordModalOpen(true)}>
               Сменить пароль
             </Button>
           </Space>
@@ -1045,7 +1068,13 @@ export function ProfilePage() {
                   <Spin />
                 </div>
               ) : products.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 160 : isTablet ? 220 : 260}px, 1fr))`,
+                    gap: isMobile ? 12 : 16,
+                  }}
+                >
                   {products.map((product) => (
                     <ProductCard
                       key={product.id}
@@ -1193,11 +1222,11 @@ export function ProfilePage() {
                 />
               </Form.Item>
               <Form.Item style={{ marginBottom: 0 }}>
-                <Space>
-                  <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>
+                <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : undefined }}>
+                  <Button type="primary" htmlType="submit" loading={updateMutation.isPending} block={isMobile}>
                     Сохранить
                   </Button>
-                  <Button onClick={() => setIsEditMode(false)}>
+                  <Button block={isMobile} onClick={() => setIsEditMode(false)}>
                     Отмена
                   </Button>
                 </Space>
@@ -1291,11 +1320,11 @@ export function ProfilePage() {
                 />
               </Form.Item>
               <Form.Item style={{ marginBottom: 0 }}>
-                <Space>
-                  <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>
+                <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : undefined }}>
+                  <Button type="primary" htmlType="submit" loading={updateMutation.isPending} block={isMobile}>
                     Сохранить
                   </Button>
-                  <Button onClick={() => setIsEditMode(false)}>
+                  <Button block={isMobile} onClick={() => setIsEditMode(false)}>
                     Отмена
                   </Button>
                 </Space>
@@ -1328,13 +1357,13 @@ export function ProfilePage() {
         onCancel={() => setAvatarPreviewOpen(false)}
         footer={null}
         centered
-        styles={{ body: { display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 0 } }}
-        width="auto"
+        styles={{ body: { display: 'flex', justifyContent: 'center', alignItems: 'center', padding: isMobile ? 8 : 0 } }}
+        width={isMobile ? '95vw' : 'auto'}
       >
         <img
           src={user.avatar ?? undefined}
           alt="Аватар"
-          style={{ maxWidth: '80vw', maxHeight: '80vh', borderRadius: 8, display: 'block' }}
+          style={{ maxWidth: isMobile ? '92vw' : '80vw', maxHeight: '80vh', borderRadius: 8, display: 'block' }}
         />
       </Modal>
     </div>

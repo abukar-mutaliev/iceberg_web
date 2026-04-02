@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Avatar, Button, Card, Col, Descriptions, Empty, Row,
-  Skeleton, Space, Table, Tag, Tooltip, Typography,
+  Skeleton, Space, Table, Tag, Tooltip, Typography, Grid,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -32,7 +32,7 @@ const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 // ─── Working hours schedule ───────────────────────────────────────────────────
 
-function WorkingSchedule({ hours }: { hours: WorkingHours[] }) {
+function WorkingSchedule({ hours, isMobile }: { hours: WorkingHours[]; isMobile: boolean }) {
   const byDay = Object.fromEntries(hours.map((h) => [h.dayOfWeek, h]));
   const today = new Date().getDay();
 
@@ -40,7 +40,7 @@ function WorkingSchedule({ hours }: { hours: WorkingHours[] }) {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(7, 1fr)',
+        gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(7, minmax(0, 1fr))',
         gap: 8,
         marginTop: 4,
       }}
@@ -179,6 +179,8 @@ function StatusTag({ isActive, maintenanceMode }: { isActive: boolean; maintenan
 export function WarehouseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
 
   const { data: warehouse, isLoading, error } = useQuery({
     queryKey: ['warehouse', id],
@@ -290,6 +292,7 @@ export function WarehouseDetailPage() {
           position: 'relative',
           minHeight: 160,
           display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
           alignItems: 'stretch',
         }}
       >
@@ -297,7 +300,7 @@ export function WarehouseDetailPage() {
         <div
           style={{
             flex: 1,
-            padding: '28px 32px',
+            padding: isMobile ? '20px 16px' : '28px 32px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
@@ -317,11 +320,11 @@ export function WarehouseDetailPage() {
             </Tag>
           </Space>
 
-          <Title level={2} style={{ color: '#fff', margin: 0 }}>
+          <Title level={isMobile ? 3 : 2} style={{ color: '#fff', margin: 0, wordBreak: 'break-word' }}>
             {warehouse.name}
           </Title>
 
-          <Space wrap size={20} style={{ color: 'rgba(255,255,255,0.7)' }}>
+          <Space wrap size={isMobile ? 10 : 20} style={{ color: 'rgba(255,255,255,0.7)' }}>
             <span>
               <EnvironmentOutlined style={{ marginRight: 6 }} />
               {warehouse.address}
@@ -365,7 +368,8 @@ export function WarehouseDetailPage() {
         {imageUrl && (
           <div
             style={{
-              width: 260,
+              width: isMobile ? '100%' : 260,
+              height: isMobile ? 180 : 'auto',
               flexShrink: 0,
               position: 'relative',
               overflow: 'hidden',
@@ -420,11 +424,11 @@ export function WarehouseDetailPage() {
             color: warehouse.autoManageStatus ? '#52c41a' : '#8c8c8c',
           },
         ].map((stat) => (
-          <Col key={stat.label} xs={12} sm={6}>
+          <Col key={stat.label} xs={12} sm={12} md={6}>
             <div
               style={{
                 borderRadius: 12,
-                padding: '14px 18px',
+                padding: isMobile ? '12px 12px' : '14px 18px',
                 background: '#fff',
                 border: '1px solid #f0f0f0',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
@@ -453,7 +457,7 @@ export function WarehouseDetailPage() {
                 <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
                   {stat.label}
                 </Text>
-                <Text strong style={{ fontSize: 18, lineHeight: 1.2 }}>
+                <Text strong style={{ fontSize: isMobile ? 16 : 18, lineHeight: 1.2 }}>
                   {stat.value}
                 </Text>
               </div>
@@ -477,7 +481,7 @@ export function WarehouseDetailPage() {
             style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)', borderRadius: 12, height: '100%' }}
           >
             {warehouse.workingHours?.length ? (
-              <WorkingSchedule hours={warehouse.workingHours} />
+              <WorkingSchedule hours={warehouse.workingHours} isMobile={isMobile} />
             ) : (
               <Empty description="График не задан" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             )}
@@ -496,7 +500,11 @@ export function WarehouseDetailPage() {
             variant="borderless"
             style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)', borderRadius: 12, height: '100%' }}
           >
-            <Descriptions column={1} size="small" styles={{ label: { color: '#8c8c8c', width: 150 } }}>
+            <Descriptions
+              column={1}
+              size="small"
+              styles={{ label: { color: '#8c8c8c', width: isMobile ? 120 : 150 } }}
+            >
               <Descriptions.Item label="Район">
                 <Tag color="blue">{warehouse.district?.name ?? '—'}</Tag>
               </Descriptions.Item>
@@ -597,6 +605,7 @@ export function WarehouseDetailPage() {
             columns={productStockColumns}
             rowKey="id"
             size="small"
+            scroll={isMobile ? { x: 680 } : undefined}
             pagination={{ pageSize: 20 }}
             onRow={(row) => ({
               style: { cursor: 'pointer' },

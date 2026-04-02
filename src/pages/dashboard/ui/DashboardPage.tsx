@@ -13,6 +13,7 @@ import {
   Table,
   Tag,
   Typography,
+  Grid,
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -95,6 +96,8 @@ function SupplierDashboard({
   feedbacksLoading,
 }: SupplierDashboardProps) {
   const navigate = useNavigate();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const pendingProducts = products.filter((p) => p.moderationStatus === 'PENDING');
   const rejectedProducts = products.filter((p) => p.moderationStatus === 'REJECTED');
 
@@ -163,7 +166,7 @@ function SupplierDashboard({
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 20 }}>
+      <Title level={isMobile ? 5 : 4} style={{ marginBottom: 20 }}>
         Кабинет поставщика
       </Title>
 
@@ -240,6 +243,7 @@ function SupplierDashboard({
                 rowKey="id"
                 pagination={false}
                 size="small"
+                scroll={isMobile ? { x: 700 } : undefined}
               />
             )}
           </Card>
@@ -279,7 +283,7 @@ function SupplierDashboard({
                     <Typography.Link
                       onClick={() => navigate(`/products/${p.id}`)}
                       ellipsis
-                      style={{ maxWidth: 190 }}
+                      style={{ maxWidth: isMobile ? 130 : 190 }}
                     >
                       {p.name}
                     </Typography.Link>
@@ -316,6 +320,7 @@ function SupplierDashboard({
             rowKey="id"
             pagination={false}
             size="small"
+            scroll={isMobile ? { x: 520 } : undefined}
           />
         </Card>
       )}
@@ -353,6 +358,8 @@ function AdminDashboard({
   warehousesLoading,
 }: AdminDashboardProps) {
   const navigate = useNavigate();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const activeWarehouses = warehouses.filter((w) => w.isActive && !w.maintenanceMode).length;
   const inactiveWarehouses = warehouses.length - activeWarehouses;
   const criticalItems = criticalStock.filter((s) => s.urgency === 'critical');
@@ -436,14 +443,15 @@ function AdminDashboard({
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 20 }}>
-        Панель управления{' '}
+      <Title level={isMobile ? 5 : 4} style={{ marginBottom: 20 }}>
+        Панель управления
+        <br />
         {isSuperAdmin ? (
-          <Tag color="purple" style={{ fontSize: 13, padding: '2px 10px' }}>
+          <Tag color="purple" style={{ fontSize: 13, padding: '2px 10px', marginTop: 8 }}>
             Суперадмин
           </Tag>
         ) : (
-          <Tag color="blue" style={{ fontSize: 13, padding: '2px 10px' }}>
+          <Tag color="blue" style={{ fontSize: 13, padding: '2px 10px', marginTop: 8 }}>
             Администратор
           </Tag>
         )}
@@ -632,7 +640,7 @@ function AdminDashboard({
                         }
                       />
                       <div style={{ minWidth: 0 }}>
-                        <Typography.Link style={{ display: 'block', maxWidth: 160 }} ellipsis>
+                        <Typography.Link style={{ display: 'block', maxWidth: isMobile ? 120 : 160 }} ellipsis>
                           {w.name}
                         </Typography.Link>
                         <Text type="secondary" style={{ fontSize: 11 }}>
@@ -651,11 +659,11 @@ function AdminDashboard({
                   </Text>
                 )}
                 <Divider style={{ margin: '8px 0' }} />
-                <Row>
-                  <Col span={12}>
+                <Row gutter={[8, 8]}>
+                  <Col xs={24} sm={12}>
                     <Text style={{ color: '#52c41a' }}>✓ Активных: {activeWarehouses}</Text>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <Text style={{ color: inactiveWarehouses > 0 ? '#ff4d4f' : undefined }}>
                       ✕ Неактивных: {inactiveWarehouses}
                     </Text>
@@ -703,7 +711,7 @@ function AdminDashboard({
                       <Typography.Link
                         onClick={() => navigate(`/products/${p.id}`)}
                         ellipsis
-                        style={{ display: 'block', maxWidth: 170 }}
+                        style={{ display: 'block', maxWidth: isMobile ? 120 : 170 }}
                       >
                         {p.name}
                       </Typography.Link>
@@ -767,6 +775,7 @@ function AdminDashboard({
             rowKey={(r) => `${r.productId}-${r.warehouseId}`}
             pagination={false}
             size="small"
+            scroll={isMobile ? { x: 760 } : undefined}
             rowClassName={(r) =>
               r.urgency === 'critical' ? 'ant-table-row-selected' : ''
             }

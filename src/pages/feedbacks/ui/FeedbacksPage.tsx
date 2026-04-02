@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, List, Rate, Button, Typography, Modal, Input, message, Select, Space } from 'antd';
+import { Card, List, Rate, Button, Typography, Modal, Input, message, Select, Space, Grid } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
 import { getFeedbacksBySupplierId, replyToFeedback } from '@/entities/feedback';
 import { getProfile } from '@/entities/user';
@@ -11,6 +11,8 @@ import type { Feedback } from '@/entities/feedback';
 
 export function FeedbacksPage() {
   const queryClient = useQueryClient();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [replyModalOpen, setReplyModalOpen] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -79,16 +81,23 @@ export function FeedbacksPage() {
 
   return (
     <div>
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>
+      <Space
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+        wrap
+        direction={isMobile ? 'vertical' : 'horizontal'}
+      >
+        <Typography.Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>
           Отзывы
         </Typography.Title>
         <Select
           placeholder="Фильтр по продукту"
           allowClear
-          style={{ width: 220 }}
+          style={{ width: isMobile ? '100%' : 280, maxWidth: '100%' }}
           value={productFilter}
-          onChange={setProductFilter}
+          onChange={(value) => {
+            setProductFilter(value);
+            setPage(1);
+          }}
           options={products.map((p) => ({ label: p.name, value: p.id }))}
         />
       </Space>
@@ -105,6 +114,7 @@ export function FeedbacksPage() {
                   type="link"
                   icon={<MessageOutlined />}
                   onClick={() => handleOpenReply(item)}
+                  block={isMobile}
                 >
                   {item.supplierReply ? 'Изменить ответ' : 'Ответить'}
                 </Button>,
@@ -112,16 +122,16 @@ export function FeedbacksPage() {
             >
               <List.Item.Meta
                 title={
-                  <Space>
+                  <Space wrap size={8}>
                     <span>{item.product?.name ?? `Продукт #${item.productId}`}</span>
-                    <Rate disabled value={item.rating} />
+                    <Rate disabled value={item.rating} style={{ fontSize: isMobile ? 14 : undefined }} />
                   </Space>
                 }
                 description={
                   <div>
-                    <Typography.Paragraph>{item.comment ?? '—'}</Typography.Paragraph>
+                    <Typography.Paragraph style={{ marginBottom: 8 }}>{item.comment ?? '—'}</Typography.Paragraph>
                     {item.supplierReply && (
-                      <Typography.Paragraph type="secondary">
+                      <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
                         <strong>Ваш ответ:</strong> {item.supplierReply}
                       </Typography.Paragraph>
                     )}
@@ -155,6 +165,7 @@ export function FeedbacksPage() {
         onOk={handleSubmitReply}
         okText="Отправить"
         confirmLoading={replyMutation.isPending}
+        width={isMobile ? '95vw' : undefined}
       >
         <Input.TextArea
           rows={4}

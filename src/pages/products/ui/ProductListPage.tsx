@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Space, Tag, Typography, Modal, message, Select, Input } from 'antd';
+import { Table, Button, Space, Tag, Typography, Modal, message, Select, Input, Grid } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import { getProducts, deleteProduct, MODERATION_STATUS_LABELS, getProductDisplayPrices, moderateProduct } from '@/entities/product';
 import type { Product, ProductModerationStatus } from '@/entities/product';
@@ -18,6 +19,8 @@ const statusOptions: { value: ProductModerationStatus | ''; label: string }[] = 
 export function ProductListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [statusFilter, setStatusFilter] = useState<ProductModerationStatus | ''>('');
@@ -68,11 +71,13 @@ export function ProductListPage() {
   const filteredData = data?.data ?? [];
   const pagination = data?.pagination;
 
-  const columns = [
+  const columns: ColumnsType<Product> = [
     {
       title: 'Название',
       dataIndex: 'name',
       key: 'name',
+      width: isMobile ? 220 : undefined,
+      fixed: isMobile ? 'left' : undefined,
       render: (name: string, row: { id: number }) => (
         <Typography.Link onClick={() => navigate(`/products/${row.id}`)}>{name}</Typography.Link>
       ),
@@ -80,12 +85,14 @@ export function ProductListPage() {
     {
       title: 'Поставщик',
       key: 'supplier',
+      width: isMobile ? 180 : undefined,
       render: (_: unknown, row: Product) => row.supplier?.companyName ?? '—',
     },
     {
       title: 'Статус',
       dataIndex: 'moderationStatus',
       key: 'moderationStatus',
+      width: 140,
       render: (status: ProductModerationStatus) => {
         const color = status === 'APPROVED' ? 'green' : status === 'REJECTED' ? 'red' : 'orange';
         return <Tag color={color}>{MODERATION_STATUS_LABELS[status]}</Tag>;
@@ -95,6 +102,7 @@ export function ProductListPage() {
       title: 'Цена за коробку',
       dataIndex: 'boxPrice',
       key: 'boxPrice',
+      width: 140,
       render: (_v: number | null, row: Product) => {
         const { boxPrice } = getProductDisplayPrices(row, { viewerRole: profile?.role });
         return formatPrice(boxPrice);
@@ -104,19 +112,22 @@ export function ProductListPage() {
       title: 'Остаток (коробок)',
       dataIndex: 'stockQuantity',
       key: 'stockQuantity',
+      width: 130,
     },
     {
       title: 'Причина отклонения',
       dataIndex: 'moderationReason',
       key: 'moderationReason',
+      width: isMobile ? 220 : undefined,
       render: (reason: string | null) => reason ?? '—',
     },
     {
       title: 'Действия',
       key: 'actions',
-      width: isAdmin ? 260 : 120,
+      width: isMobile ? 140 : (isAdmin ? 260 : 120),
+      fixed: isMobile ? 'right' : undefined,
       render: (_: unknown, row: Product) => (
-        <Space wrap size={4}>
+        <Space wrap size={4} direction={isMobile ? 'vertical' : 'horizontal'}>
           {isAdmin && row.moderationStatus === 'PENDING' && (
             <>
               <Button
@@ -157,17 +168,21 @@ export function ProductListPage() {
 
   return (
     <div>
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>Продукты</Typography.Title>
+      <Space
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+        wrap
+        direction={isMobile ? 'vertical' : 'horizontal'}
+      >
+        <Typography.Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>Продукты</Typography.Title>
         <Select
           placeholder="Статус модерации"
           value={statusFilter || undefined}
           onChange={(v) => { setStatusFilter((v as ProductModerationStatus) ?? ''); setPage(1); }}
           options={statusOptions}
-          style={{ width: 160 }}
+          style={{ width: isMobile ? '100%' : 180, maxWidth: '100%' }}
           allowClear
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/products/new')}>
+        <Button type="primary" icon={<PlusOutlined />} block={isMobile} onClick={() => navigate('/products/new')}>
           Создать продукт
         </Button>
       </Space>
@@ -177,6 +192,8 @@ export function ProductListPage() {
         loading={isLoading}
         columns={columns}
         dataSource={filteredData}
+        size={isMobile ? 'small' : 'middle'}
+        scroll={isMobile ? { x: 1120 } : undefined}
         pagination={
           pagination
             ? {

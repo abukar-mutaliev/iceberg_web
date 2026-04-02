@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, Button, Space, Typography, Tag, Descriptions, Modal, Skeleton, Image, Form, InputNumber, Input } from 'antd';
+import { Card, Button, Space, Typography, Tag, Descriptions, Modal, Skeleton, Image, Form, InputNumber, Input, Grid } from 'antd';
 import {
   ArrowLeftOutlined,
   EditOutlined,
@@ -25,14 +25,14 @@ const MODERATION_CONFIG: Record<string, { label: string; color: string; icon: Re
   REJECTED: { label: 'Отклонён', color: '#ef4444', icon: <CloseCircleOutlined /> },
 };
 
-function ImageGallery({ images }: { images: string[] }) {
+function ImageGallery({ images, isMobile }: { images: string[]; isMobile: boolean }) {
   const [active, setActive] = useState(0);
 
   if (!images.length) {
     return (
       <div
         style={{
-          height: 320,
+          height: isMobile ? 240 : 320,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -59,7 +59,7 @@ function ImageGallery({ images }: { images: string[] }) {
         style={{
           borderRadius: 16,
           overflow: 'hidden',
-          height: 360,
+          height: isMobile ? 260 : 360,
           background: '#f8fafc',
           display: 'flex',
           alignItems: 'center',
@@ -70,7 +70,7 @@ function ImageGallery({ images }: { images: string[] }) {
         <Image
           src={buildImageUrl(images[active])}
           alt={`Изображение ${active + 1}`}
-          style={{ maxHeight: 360, maxWidth: '100%', objectFit: 'contain', display: 'block' }}
+          style={{ maxHeight: isMobile ? 260 : 360, maxWidth: '100%', objectFit: 'contain', display: 'block' }}
           preview={true}
           fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='1'%3E%3Crect x='3' y='3' width='18' height='18' rx='3'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpath d='M21 15l-5-5L5 21'/%3E%3C/svg%3E"
         />
@@ -108,7 +108,7 @@ function ImageGallery({ images }: { images: string[] }) {
   );
 }
 
-function InfoCard({ product, viewerRole }: { product: Product; viewerRole?: string }) {
+function InfoCard({ product, viewerRole, isMobile }: { product: Product; viewerRole?: string; isMobile: boolean }) {
   const mod = MODERATION_CONFIG[product.moderationStatus];
   const { unitPrice, boxPrice: displayBoxPrice } = getProductDisplayPrices(product, { viewerRole });
   const showApprovedUnderProposal =
@@ -121,7 +121,7 @@ function InfoCard({ product, viewerRole }: { product: Product; viewerRole?: stri
       {/* Name + status */}
       <div>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <Title level={3} style={{ margin: 0, color: '#0f172a', flex: 1 }}>
+          <Title level={isMobile ? 4 : 3} style={{ margin: 0, color: '#0f172a', flex: 1 }}>
             {product.name}
           </Title>
           <Space size={6} wrap>
@@ -182,14 +182,14 @@ function InfoCard({ product, viewerRole }: { product: Product; viewerRole?: stri
         style={{
           background: 'linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%)',
           borderRadius: 14,
-          padding: '16px 20px',
+            padding: isMobile ? '14px 14px' : '16px 20px',
           border: '1px solid #e0e7ff',
         }}
       >
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+            gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 120 : 140}px, 1fr))`,
             gap: 16,
           }}
         >
@@ -277,6 +277,8 @@ export function ProductDetailPage() {
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [approveForm] = Form.useForm<{ price: number; boxPrice?: number; reason?: string }>();
   const [rejectForm] = Form.useForm<{ reason: string }>();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
 
   const { data: product, isLoading, isError } = useQuery({
     queryKey: ['product', productId],
@@ -336,7 +338,7 @@ export function ProductDetailPage() {
     return (
       <div style={{ display: 'grid', gap: 16 }}>
         <Skeleton.Button active style={{ width: 160, height: 32 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 24 }}>
           <Skeleton.Image active style={{ width: '100%', height: 360 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Skeleton active paragraph={{ rows: 6 }} />
@@ -364,17 +366,27 @@ export function ProductDetailPage() {
   return (
     <div style={{ display: 'grid', gap: 20 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: isMobile ? 'stretch' : 'center',
+          justifyContent: 'space-between',
+          flexDirection: isMobile ? 'column' : 'row',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate(-1)}
           style={{ color: '#64748b', padding: '4px 8px' }}
+          block={isMobile}
         >
           Назад
         </Button>
 
-        <Space wrap>
+        <Space wrap direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : undefined }}>
           {isAdmin && isPending && (
             <>
               <Button
@@ -382,6 +394,7 @@ export function ProductDetailPage() {
                 icon={<CheckCircleOutlined />}
                 style={{ background: '#10b981', borderColor: '#10b981' }}
                 onClick={handleApproveOpen}
+                block={isMobile}
               >
                 Одобрить
               </Button>
@@ -389,6 +402,7 @@ export function ProductDetailPage() {
                 danger
                 icon={<CloseCircleOutlined />}
                 onClick={() => { rejectForm.resetFields(); setRejectModalOpen(true); }}
+                block={isMobile}
               >
                 Отклонить
               </Button>
@@ -398,6 +412,7 @@ export function ProductDetailPage() {
             type="primary"
             icon={<EditOutlined />}
             onClick={() => navigate(`/products/${productId}/edit`)}
+            block={isMobile}
           >
             Редактировать
           </Button>
@@ -405,6 +420,7 @@ export function ProductDetailPage() {
             danger
             icon={<DeleteOutlined />}
             onClick={() => setDeleteModalOpen(true)}
+            block={isMobile}
           >
             Удалить
           </Button>
@@ -415,8 +431,8 @@ export function ProductDetailPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(280px, 1fr) minmax(320px, 1.2fr)',
-          gap: 28,
+          gridTemplateColumns: isMobile ? '1fr' : 'minmax(280px, 1fr) minmax(320px, 1.2fr)',
+          gap: isMobile ? 16 : 28,
           alignItems: 'start',
         }}
       >
@@ -424,18 +440,18 @@ export function ProductDetailPage() {
         <Card
           variant="borderless"
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)', borderRadius: 18 }}
-          styles={{ body: { padding: 20 } }}
+          styles={{ body: { padding: isMobile ? 12 : 20 } }}
         >
-          <ImageGallery images={product.images ?? []} />
+          <ImageGallery images={product.images ?? []} isMobile={isMobile} />
         </Card>
 
         {/* Right: info */}
         <Card
           variant="borderless"
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)', borderRadius: 18 }}
-          styles={{ body: { padding: 28 } }}
+          styles={{ body: { padding: isMobile ? 16 : 28 } }}
         >
-          <InfoCard product={product} viewerRole={profile?.role} />
+          <InfoCard product={product} viewerRole={profile?.role} isMobile={isMobile} />
         </Card>
       </div>
 
@@ -453,7 +469,7 @@ export function ProductDetailPage() {
         okText="Удалить"
         cancelText="Отмена"
         okButtonProps={{ danger: true, loading: deleteMutation.isPending }}
-        width={420}
+        width={isMobile ? '95vw' : 420}
       >
         <Paragraph style={{ margin: '16px 0 0' }}>
           Продукт <Text strong>«{product.name}»</Text> будет удалён. Это действие нельзя отменить.
@@ -474,7 +490,7 @@ export function ProductDetailPage() {
         okText="Одобрить"
         cancelText="Отмена"
         okButtonProps={{ style: { background: '#10b981', borderColor: '#10b981' }, loading: moderateMutation.isPending }}
-        width={480}
+        width={isMobile ? '95vw' : 480}
       >
         <Paragraph style={{ margin: '12px 0 16px', color: '#475569' }}>
           Укажите финальные цены для публикации на витрине. По умолчанию используются предложенные поставщиком значения.
@@ -518,7 +534,7 @@ export function ProductDetailPage() {
         okText="Отклонить"
         cancelText="Отмена"
         okButtonProps={{ danger: true, loading: moderateMutation.isPending }}
-        width={420}
+        width={isMobile ? '95vw' : 420}
       >
         <Paragraph style={{ margin: '12px 0 16px', color: '#475569' }}>
           Укажите причину отклонения. Поставщик увидит её в своём кабинете.

@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Grid, ConfigProvider } from 'antd';
 import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  HomeOutlined,
+  AppstoreOutlined,
+  SwapOutlined,
+  MessageOutlined,
+  UserOutlined,
+  BankOutlined,
 } from '@ant-design/icons';
 import { logout } from '@/features/auth';
 import { useQuery } from '@tanstack/react-query';
@@ -14,15 +20,17 @@ import logo from '@/assets/logo/logo.png';
 const { Header, Sider, Content } = Layout;
 
 const BASE_MENU = [
-  { key: '/',          label: 'Кабинет'  },
-  { key: '/products',  label: 'Продукты' },
-  { key: '/returns',   label: 'Возвраты' },
-  { key: '/feedbacks', label: 'Отзывы'   },
-  { key: '/profile',   label: 'Профиль'  },
+  { key: '/',          label: 'Кабинет',  icon: <HomeOutlined /> },
+  { key: '/products',  label: 'Продукты', icon: <AppstoreOutlined /> },
+  { key: '/returns',   label: 'Возвраты', icon: <SwapOutlined /> },
+  { key: '/feedbacks', label: 'Отзывы',   icon: <MessageOutlined /> },
+  { key: '/profile',   label: 'Профиль',  icon: <UserOutlined /> },
 ];
 
 export function MainLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const navigate  = useNavigate();
   const location  = useLocation();
 
@@ -36,7 +44,7 @@ export function MainLayout() {
   const menuItems = isAdmin
     ? [
         ...BASE_MENU,
-        { key: '/warehouses', label: 'Склады' },
+        { key: '/warehouses', label: 'Склады', icon: <BankOutlined /> },
       ]
     : BASE_MENU;
 
@@ -52,7 +60,8 @@ export function MainLayout() {
     user?.email ??
     'Пользователь';
 
-  const siderWidth = collapsed ? 80 : 200;
+  const effectiveCollapsed = isMobile ? true : collapsed;
+  const siderWidth = isMobile ? 50 : (effectiveCollapsed ? 80 : 200);
 
   // Highlight the first path segment, e.g. "/warehouses/5" → "/warehouses"
   const selectedKey = location.pathname === '/'
@@ -64,7 +73,9 @@ export function MainLayout() {
       <Sider
         trigger={null}
         collapsible
-        collapsed={collapsed}
+        collapsed={effectiveCollapsed}
+        width={siderWidth}
+        collapsedWidth={siderWidth}
         style={{
           position: 'fixed',
           height: '100vh',
@@ -77,8 +88,8 @@ export function MainLayout() {
       >
         <div
           style={{
-            height: collapsed ? 48 : 64,
-            margin: collapsed ? '12px 8px' : '12px 16px',
+            height: effectiveCollapsed ? 40 : 64,
+            margin: effectiveCollapsed ? '8px 6px' : '12px 16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -90,19 +101,38 @@ export function MainLayout() {
             src={logo}
             alt="Iceberg"
             style={{
-              width: collapsed ? 28 : 80,
+              width: effectiveCollapsed ? (isMobile ? 20 : 28) : 80,
               objectFit: 'contain',
               transition: 'width 0.2s',
             }}
           />
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[selectedKey]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-        />
+        <ConfigProvider
+          theme={{
+            components: {
+              Menu: {
+                itemHeight: isMobile ? 44 : 40,
+                itemBorderRadius: isMobile ? 12 : 8,
+                itemMarginInline: isMobile ? 6 : 4,
+                itemMarginBlock: isMobile ? 6 : 4,
+                itemSelectedBg: '#2b3f68',
+                itemHoverBg: '#1f2f4a',
+              },
+            },
+          }}
+        >
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[selectedKey]}
+            items={menuItems}
+            onClick={({ key }) => navigate(key)}
+            style={{
+              paddingRight: isMobile ? 10 : undefined,
+              textAlign: isMobile ? 'center' : undefined,
+            }}
+          />
+        </ConfigProvider>
       </Sider>
 
       <Layout style={{ marginLeft: siderWidth, transition: 'margin-left 0.2s' }}>
@@ -121,20 +151,21 @@ export function MainLayout() {
           <Space>
             <Button
               type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              icon={effectiveCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setCollapsed(!collapsed)}
+              disabled={isMobile}
             />
-            <Typography.Text type="secondary">{displayName}</Typography.Text>
+            {!isMobile && <Typography.Text type="secondary">{displayName}</Typography.Text>}
           </Space>
           <Button type="text" danger icon={<LogoutOutlined />} onClick={handleLogout}>
-            Выйти
+            {!isMobile && 'Выйти'}
           </Button>
         </Header>
 
         <Content
           style={{
-            margin: 24,
-            padding: 24,
+            margin: isMobile ? 10 : 24,
+            padding: isMobile ? 12 : 24,
             background: '#fff',
             borderRadius: 8,
           }}

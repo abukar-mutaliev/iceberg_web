@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, Form, Input, InputNumber, Button, Space, Typography, Upload, Image, message, Modal, Select } from 'antd';
+import { Card, Form, Input, InputNumber, Button, Space, Typography, Upload, Image, message, Modal, Select, Grid } from 'antd';
 import { ArrowLeftOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { getProductById, createProduct, updateProduct, getCategories } from '@/entities/product';
 import { getProfile, getSuppliers } from '@/entities/user';
@@ -90,6 +90,8 @@ export function ProductFormPage() {
   const [showModerationWarning, setShowModerationWarning] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState('');
   const [imageError, setImageError] = useState<string | null>(null);
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ['product', productId],
@@ -274,11 +276,15 @@ export function ProductFormPage() {
 
   return (
     <div>
-      <Space style={{ marginBottom: 16 }} wrap>
+      <Space
+        style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}
+        wrap
+        direction={isMobile ? 'vertical' : 'horizontal'}
+      >
         <Typography.Link onClick={() => navigate('/products')}>
           <ArrowLeftOutlined /> Вернуться к списку
         </Typography.Link>
-        <Typography.Title level={4} style={{ margin: 0 }}>
+        <Typography.Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>
           {isEdit ? 'Редактирование продукта' : 'Новый продукт'}
         </Typography.Title>
       </Space>
@@ -287,7 +293,7 @@ export function ProductFormPage() {
         <Form
           layout="vertical"
           onFinish={form.handleSubmit(onSubmit)}
-          style={{ maxWidth: 600 }}
+          style={{ maxWidth: isMobile ? '100%' : 600 }}
         >
           {/* Supplier selector — admin only */}
           {isAdmin && (
@@ -343,7 +349,7 @@ export function ProductFormPage() {
             />
           </Form.Item>
 
-          <Space wrap size="large">
+          <Space wrap size={isMobile ? 'middle' : 'large'} style={{ width: '100%' }}>
             <Form.Item
               label="Цена за штуку (₽)"
               required
@@ -357,7 +363,7 @@ export function ProductFormPage() {
                   <InputNumber
                     min={0.01}
                     step={0.01}
-                    style={{ width: 140 }}
+                    style={{ width: isMobile ? '100%' : 140 }}
                     {...field}
                     onChange={(v) => {
                       const val = v ?? 0;
@@ -381,7 +387,7 @@ export function ProductFormPage() {
                 render={({ field }) => (
                   <InputNumber
                     min={1}
-                    style={{ width: 120 }}
+                    style={{ width: isMobile ? '100%' : 120 }}
                     {...field}
                     onChange={(v) => {
                       const val = v ?? 1;
@@ -409,7 +415,7 @@ export function ProductFormPage() {
                   <InputNumber
                     min={0}
                     step={0.01}
-                    style={{ width: 140 }}
+                    style={{ width: isMobile ? '100%' : 140 }}
                     value={field.value ?? undefined}
                     onChange={(v) => {
                       const val = v ?? undefined;
@@ -430,7 +436,7 @@ export function ProductFormPage() {
                 name="stockQuantity"
                 control={form.control}
                 render={({ field }) => (
-                  <InputNumber min={0} style={{ width: 120 }} {...field} onChange={(v) => field.onChange(v ?? 0)} />
+                  <InputNumber min={0} style={{ width: isMobile ? '100%' : 120 }} {...field} onChange={(v) => field.onChange(v ?? 0)} />
                 )}
               />
             </Form.Item>
@@ -442,7 +448,7 @@ export function ProductFormPage() {
                   <InputNumber
                     min={0}
                     step={0.01}
-                    style={{ width: 120 }}
+                    style={{ width: isMobile ? '100%' : 120 }}
                     value={field.value ?? undefined}
                     onChange={(v) => field.onChange(v ?? undefined)}
                   />
@@ -479,8 +485,8 @@ export function ProductFormPage() {
                 <div key={url} style={{ position: 'relative' }}>
                   <Image
                     src={buildImageUrl(url)}
-                    width={80}
-                    height={80}
+                    width={isMobile ? 72 : 80}
+                    height={isMobile ? 72 : 80}
                     style={{ objectFit: 'cover' }}
                   />
                   <Button
@@ -497,8 +503,8 @@ export function ProductFormPage() {
                 <div key={url} style={{ opacity: 0.5, position: 'relative' }}>
                   <Image
                     src={buildImageUrl(url)}
-                    width={80}
-                    height={80}
+                    width={isMobile ? 72 : 80}
+                    height={isMobile ? 72 : 80}
                     style={{ objectFit: 'cover', filter: 'grayscale(1)' }}
                   />
                   <Button
@@ -515,8 +521,8 @@ export function ProductFormPage() {
                   <img
                     src={URL.createObjectURL(file)}
                     alt=""
-                    width={80}
-                    height={80}
+                    width={isMobile ? 72 : 80}
+                    height={isMobile ? 72 : 80}
                     style={{ objectFit: 'cover' }}
                   />
                   <Button
@@ -539,17 +545,17 @@ export function ProductFormPage() {
                 return false;
               }}
             >
-              <Button icon={<PlusOutlined />}>Добавить изображение</Button>
+              <Button icon={<PlusOutlined />} block={isMobile}>Добавить изображение</Button>
             </Upload>
             <Typography.Text type="secondary">Максимум 10 изображений</Typography.Text>
           </Form.Item>
 
           <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={isPending}>
+            <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : undefined }}>
+              <Button type="primary" htmlType="submit" loading={isPending} block={isMobile}>
                 {isEdit ? 'Сохранить' : 'Создать'}
               </Button>
-              <Button onClick={() => navigate('/products')}>Отмена</Button>
+              <Button onClick={() => navigate('/products')} block={isMobile}>Отмена</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -563,6 +569,7 @@ export function ProductFormPage() {
         okText="Сохранить"
         cancelText="Отмена"
         confirmLoading={isPending}
+        width={isMobile ? '95vw' : undefined}
       >
         <p>При сохранении продукт снова будет отправлен на модерацию. Продолжить?</p>
       </Modal>
