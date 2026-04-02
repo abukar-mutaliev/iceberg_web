@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Avatar, Badge, Button, Card, Col, Descriptions, Empty, Image, Row,
+  Avatar, Button, Card, Col, Descriptions, Empty, Row,
   Skeleton, Space, Table, Tag, Tooltip, Typography,
 } from 'antd';
 import {
@@ -22,12 +22,11 @@ import { getWarehouseById } from '@/entities/warehouse';
 import type { WarehouseEmployee, WarehouseProductStock, WorkingHours } from '@/entities/warehouse';
 import { buildImageUrl, formatPrice } from '@/shared/lib';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 // ─── Day labels ──────────────────────────────────────────────────────────────
 
 const DAY_SHORT = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-const DAY_FULL  = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
 // Display order: Mon … Sun  (1,2,3,4,5,6,0)
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
