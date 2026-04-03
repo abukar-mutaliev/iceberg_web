@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, Form, Input, InputNumber, Button, Space, Typography, Upload, Image, message, Modal, Select, Grid } from 'antd';
 import { ArrowLeftOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { getProductById, createProduct, updateProduct, getCategories } from '@/entities/product';
+import { getProductById, createProduct, updateProduct, getCategories, uploadProductImage } from '@/entities/product';
 import { getProfile, getSuppliers } from '@/entities/user';
 import { buildImageUrl, imageUrlToStoragePath } from '@/shared/lib';
 
@@ -56,6 +56,7 @@ function buildFormData(
   values: ProductFormValues,
   imageFiles: File[],
   removeImageUrls?: string[],
+  includeSupplierId = true,
 ): FormData {
   const fd = new FormData();
   fd.append('name', values.name);
@@ -66,13 +67,30 @@ function buildFormData(
   if (values.boxPrice != null && values.boxPrice > 0) fd.append('boxPrice', String(values.boxPrice));
   if (values.weight != null && values.weight > 0) fd.append('weight', String(values.weight));
   fd.append('categories', JSON.stringify(values.categoryIds ?? []));
-  if (values.supplierId != null) fd.append('supplierId', String(values.supplierId));
+  if (includeSupplierId && values.supplierId != null) fd.append('supplierId', String(values.supplierId));
   imageFiles.forEach((f) => fd.append('images', f));
   if (removeImageUrls?.length) {
     const pathsForApi = removeImageUrls.map((u) => imageUrlToStoragePath(u)).filter(Boolean);
     fd.append('removeImages', JSON.stringify(pathsForApi));
   }
   return fd;
+}
+
+function buildCreatePayload(values: ProductFormValues, includeSupplierId = true): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    name: values.name,
+    description: values.description ?? '',
+    price: values.price,
+    itemsPerBox: values.itemsPerBox,
+    stockQuantity: values.stockQuantity,
+    categories: values.categoryIds ?? [],
+  };
+
+  if (values.boxPrice != null && values.boxPrice > 0) payload.boxPrice = values.boxPrice;
+  if (values.weight != null && values.weight > 0) payload.weight = values.weight;
+  if (includeSupplierId && values.supplierId != null) payload.supplierId = values.supplierId;
+
+  return payload;
 }
 
 // ── component ────────────────────────────────────────────────────────────────
@@ -154,7 +172,7 @@ export function ProductFormPage() {
       stockQuantity: product.stockQuantity ?? 0,
       weight: product.weight ?? undefined,
       categoryIds: product.categories?.map((c) => c.id) ?? [],
-      supplierId: product.supplier?.id ?? undefined,
+      supplierId: isAdmin ? (product.supplier?.id ?? undefined) : undefined,
     });
     setExistingImages(product.images ?? []);
   }, [product, form, profile]);
@@ -191,7 +209,28 @@ export function ProductFormPage() {
   };
 
   const createMutation = useMutation({
-    mutationFn: createProduct,
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const createdProduct = await createProduct(payload);
+
+      if (imageFiles.length === 0) {
+        return createdProduct;
+      }
+
+      let failedUploads = 0;
+      for (const file of imageFiles) {
+        try {
+          await uploadProductImage(createdProduct.id, file);
+        } catch {
+          failedUploads += 1;
+        }
+      }
+
+      if (failedUploads > 0) {
+        message.warning(`Товар создан, но ${failedUploads} изображ. не загрузилось`);
+      }
+
+      return createdProduct;
+    },
     onSuccess: () => {
       message.success('Продукт отправлен на модерацию');
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -227,12 +266,12 @@ export function ProductFormPage() {
 
   const doSubmit = (values: ProductFormValues) => {
     const removeList = removeImageUrls.length ? removeImageUrls : undefined;
-    const formData = buildFormData(values, imageFiles, removeList);
+    const formData = buildFormData(values, isEdit ? imageFiles : [], removeList, isAdmin);
 
     if (isEdit && productId) {
       updateMutation.mutate({ id: productId, formData });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(buildCreatePayload(values, isAdmin));
     }
     setShowModerationWarning(false);
   };

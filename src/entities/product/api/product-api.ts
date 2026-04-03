@@ -2,6 +2,19 @@ import { apiClient } from '@/shared/api';
 import type { ApiResponse } from '@/shared/api';
 import type { Product, ProductsListParams, ProductsListResponse, Category } from '../model/types';
 
+type ProductMutationResponse = {
+  status?: string;
+  data?: Product | { product?: Product };
+  message?: string;
+};
+
+function extractProductFromMutationResponse(payload: ProductMutationResponse): Product | undefined {
+  const responseData = payload.data;
+  if (!responseData) return undefined;
+  if ('id' in responseData) return responseData;
+  return responseData.product;
+}
+
 /** Список своих продуктов (для поставщика — только свои). Бэкенд: { data: Product[], pagination }. */
 export async function getProducts(params: ProductsListParams = {}): Promise<ProductsListResponse> {
   const { page = 1, limit = 10, moderationStatus } = params;
@@ -22,18 +35,33 @@ export async function getProductById(id: number): Promise<Product> {
   throw new Error(data.message ?? 'Продукт не найден');
 }
 
-/** Создание продукта. multipart/form-data: name, description, price, itemsPerBox, boxPrice, stockQuantity, weight, categories (JSON array), images (файлы). */
-export async function createProduct(formData: FormData): Promise<Product> {
-  const { data } = await apiClient.post<ApiResponse<Product>>('/api/products', formData);
-  if (data.data) return data.data;
+/** Создание продукта без изображений; изображения догружаются отдельными запросами. */
+export async function createProduct(payload: Record<string, unknown>): Promise<Product> {
+  const { data } = await apiClient.post<ProductMutationResponse>('/api/products', payload);
+  const product = extractProductFromMutationResponse(data);
+  if (product) return product;
   throw new Error(data.message ?? 'Не удалось создать продукт');
 }
 
 /** Обновление продукта. multipart/form-data. При изменении продукт снова уходит на модерацию. */
 export async function updateProduct(id: number, formData: FormData): Promise<Product> {
-  const { data } = await apiClient.put<ApiResponse<Product>>(`/api/products/${id}`, formData);
-  if (data.data) return data.data;
+  const { data } = await apiClient.put<ProductMutationResponse>(`/api/products/${id}`, formData);
+  const product = extractProductFromMutationResponse(data);
+  if (product) return product;
   throw new Error(data.message ?? 'Не удалось обновить продукт');
+}
+
+/** Загрузка одного изображения для уже созданного продукта. */
+export async function uploadProductImage(productId: number, file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('image', file);
+  const { data } = await apiClient.post<{ data?: { imagePath?: string }; message?: string }>(
+    `/api/products/${productId}/images`,
+    formData,
+  );
+  const imagePath = data.data?.imagePath;
+  if (imagePath) return imagePath;
+  throw new Error(data.message ?? 'Не удалось загрузить изображение');
 }
 
 /** Удаление продукта. */
