@@ -111,12 +111,38 @@
             margin-top: 24px;
             line-height: 1.5;
         }
+        /* Компактный режим внутри WebView приложения (?embed=1) */
+        body.embed,
+        body.embed html {
+            height: auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+        body.embed .wrap {
+            min-height: 0;
+            justify-content: flex-start;
+            padding: 0 16px 12px;
+        }
+        body.embed .page-title,
+        body.embed .page-subtitle,
+        body.embed .hint {
+            display: none;
+        }
+        body.embed .field:first-of-type {
+            margin-top: 0;
+        }
+        body.embed .field {
+            margin-bottom: 14px;
+        }
+        body.embed button {
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
     <div class="wrap">
-        <h1>Вход по номеру телефона</h1>
-        <p class="subtitle">
+        <h1 class="page-title">Вход по номеру телефона</h1>
+        <p class="page-subtitle subtitle">
             Подтвердите номер телефона — авторизация пройдёт автоматически
             или по коду из SMS.
         </p>
@@ -159,6 +185,10 @@
     <script>
         (function () {
             var params = new URLSearchParams(window.location.search);
+            if (params.get('embed') === '1') {
+                document.body.classList.add('embed');
+            }
+
             var sdkSrc = params.get('sdk') || '/mobileid-sdk.js';
             var s = document.createElement('script');
             s.src = sdkSrc;
@@ -172,6 +202,8 @@
 
         var mid = null;
         var currentPhone = '';
+        var pendingTimer = null;
+        var pendingStartedAt = 0;
 
         var els = {
             phone: document.getElementById('phone'),
@@ -205,6 +237,38 @@
                     window.ReactNativeWebView.postMessage(JSON.stringify(payload));
                 }
             } catch (e) { /* no-op */ }
+        }
+
+        function clearPendingTimer() {
+            if (pendingTimer) {
+                clearInterval(pendingTimer);
+                pendingTimer = null;
+            }
+        }
+
+        function startPendingHints() {
+            clearPendingTimer();
+            pendingStartedAt = Date.now();
+            postToApp({ type: 'status', phase: 'pending', message: 'Запуск проверки номера...' });
+
+            pendingTimer = setInterval(function () {
+                var sec = Math.floor((Date.now() - pendingStartedAt) / 1000);
+                var message = '';
+
+                if (sec < 20) {
+                    message = 'Проверяем номер. Если вы на Wi‑Fi — включите мобильный интернет (4G/5G).';
+                } else if (sec < 45) {
+                    message = 'Ожидаем подтверждение на телефоне (SIM‑PUSH). Нажмите «Принять» во всплывающем окне.';
+                } else if (sec < 90) {
+                    message = 'Отправляем SMS с кодом. Обычно приходит в течение минуты.';
+                } else {
+                    message = 'Код не пришёл? Отключите Wi‑Fi, включите мобильный интернет и попробуйте снова. Проверьте, что номер совпадает с SIM в телефоне.';
+                    postToApp({ type: 'pending_timeout', seconds: sec });
+                }
+
+                showStatus(message, sec >= 90 ? 'error' : 'info');
+                postToApp({ type: 'status', phase: 'pending', seconds: sec, message: message });
+            }, 5000);
         }
 
         // Форматирование номера в +7 (XXX) XXX-XX-XX
@@ -243,15 +307,18 @@
 
             mid.on('ready', function () {
                 showStatus('');
+                postToApp({ type: 'status', phase: 'ready' });
             });
             mid.on('pending', function () {
-                showStatus('Проверяем номер. Подтвердите запрос на телефоне, если появится...', 'info');
+                startPendingHints();
             });
             mid.on('otp_required', function () {
+                clearPendingTimer();
                 els.phoneStep.classList.add('hidden');
                 els.otpStep.classList.remove('hidden');
                 setLoading(els.startBtn, false, 'Подтвердить');
-                showStatus('Мы отправили код в SMS. Введите его.', 'info');
+                showStatus('Мы отправили код в SMS. Введите 4 цифры.', 'info');
+                postToApp({ type: 'status', phase: 'otp_required', message: 'Введите код из SMS' });
                 els.otp.focus();
             });
             mid.on('invalid_code', function () {
@@ -268,6 +335,7 @@
                 });
             });
             mid.on('rejected', function () {
+                clearPendingTimer();
                 setLoading(els.startBtn, false, 'Подтвердить');
                 setLoading(els.otpBtn, false, 'Подтвердить код');
                 showStatus('Авторизация отклонена. Попробуйте снова.', 'error');
@@ -275,6 +343,7 @@
                 resetToPhone();
             });
             mid.on('expired', function () {
+                clearPendingTimer();
                 setLoading(els.startBtn, false, 'Подтвердить');
                 setLoading(els.otpBtn, false, 'Подтвердить код');
                 showStatus('Время вышло. Начните заново.', 'error');
@@ -282,6 +351,7 @@
                 resetToPhone();
             });
             mid.on('error', function (err) {
+                clearPendingTimer();
                 setLoading(els.startBtn, false, 'Подтвердить');
                 setLoading(els.otpBtn, false, 'Подтвердить код');
                 var msg = (err && err.message) ? err.message : 'Произошла ошибка.';
@@ -312,9 +382,11 @@
                 await mid.init();
                 await mid.start(currentPhone);
             } catch (e) {
+                clearPendingTimer();
                 setLoading(els.startBtn, false, 'Подтвердить');
-                showStatus('Не удалось начать проверку. Повторите.', 'error');
-                postToApp({ type: 'error', message: String(e && e.message || e) });
+                var errMsg = (e && e.data && e.data.error) ? e.data.error : String(e && e.message || e);
+                showStatus('Не удалось начать проверку: ' + errMsg, 'error');
+                postToApp({ type: 'error', message: errMsg, code: 'START_EXCEPTION' });
             }
         });
 
