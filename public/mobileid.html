@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Вход по номеру телефона — Iceberg</title>
+    <style>
+        :root {
+            --primary: #000cff;
+            --primary-dark: #0009cc;
+            --text: #1a1a2e;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --error: #ef4444;
+            --bg: #ffffff;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: var(--bg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--text);
+        }
+        .wrap {
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 24px 20px;
+            max-width: 460px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0 0 8px;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: var(--muted);
+            text-align: center;
+            margin: 0 0 28px;
+            line-height: 1.4;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+        input {
+            width: 100%;
+            height: 54px;
+            padding: 0 16px;
+            font-size: 18px;
+            font-weight: 600;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            outline: none;
+            transition: border-color 0.15s;
+            -webkit-appearance: none;
+        }
+        input:focus { border-color: var(--primary); }
+        input:disabled { background: #f3f4f6; color: var(--muted); }
+        .field { margin-bottom: 18px; }
+        .hidden { display: none !important; }
+        button {
+            width: 100%;
+            height: 54px;
+            border: none;
+            border-radius: 27px;
+            background: var(--primary);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s, opacity 0.15s;
+            margin-top: 8px;
+        }
+        button:active { background: var(--primary-dark); }
+        button:disabled { opacity: 0.5; cursor: default; }
+        .status {
+            min-height: 20px;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 18px;
+            line-height: 1.4;
+        }
+        .status.error { color: var(--error); }
+        .status.info { color: var(--muted); }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.4);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .hint {
+            font-size: 12px;
+            color: var(--muted);
+            text-align: center;
+            margin-top: 24px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>Вход по номеру телефона</h1>
+        <p class="subtitle">
+            Подтвердите номер телефона — авторизация пройдёт автоматически
+            или по коду из SMS.
+        </p>
+
+        <div id="phoneStep">
+            <div class="field">
+                <label for="phone">Номер телефона</label>
+                <input id="phone" type="tel" inputmode="tel"
+                       placeholder="+7 (___) ___-__-__"
+                       autocomplete="tel" />
+            </div>
+            <button id="startBtn" disabled>Подтвердить</button>
+        </div>
+
+        <div id="otpStep" class="hidden">
+            <div class="field">
+                <label for="otp">Код из SMS</label>
+                <input id="otp" type="tel" inputmode="numeric"
+                       maxlength="6" placeholder="0000" autocomplete="one-time-code" />
+            </div>
+            <button id="otpBtn">Подтвердить код</button>
+        </div>
+
+        <div id="status" class="status info"></div>
+
+        <p class="hint">
+            Нажимая «Подтвердить», вы соглашаетесь с обработкой номера телефона
+            для авторизации через сервис SMS Aero.
+        </p>
+    </div>
+
+    <!--
+      ВАЖНО: подключите JS SDK MobileID от SMS Aero.
+      Точный URL скрипта возьмите в личном кабинете SMS Aero
+      (раздел «Мобильная авторизация»). Скрипт можно:
+        - положить рядом с этой страницей как /mobileid-sdk.js, ЛИБО
+        - указать CDN-URL, выданный SMS Aero.
+      Переопределить источник можно query-параметром ?sdk=<url>.
+    -->
+    <script>
+        (function () {
+            var params = new URLSearchParams(window.location.search);
+            var sdkSrc = params.get('sdk') || '/mobileid-sdk.js';
+            var s = document.createElement('script');
+            s.src = sdkSrc;
+            s.async = true;
+            s.onerror = function () {
+                showStatus('Не удалось загрузить модуль авторизации. Повторите позже.', 'error');
+            };
+            s.onload = init;
+            document.head.appendChild(s);
+        })();
+
+        var mid = null;
+        var currentPhone = '';
+
+        var els = {
+            phone: document.getElementById('phone'),
+            startBtn: document.getElementById('startBtn'),
+            phoneStep: document.getElementById('phoneStep'),
+            otp: document.getElementById('otp'),
+            otpBtn: document.getElementById('otpBtn'),
+            otpStep: document.getElementById('otpStep'),
+            status: document.getElementById('status'),
+        };
+
+        function showStatus(text, kind) {
+            els.status.textContent = text || '';
+            els.status.className = 'status ' + (kind || 'info');
+        }
+
+        function setLoading(btn, loading, label) {
+            if (loading) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner"></span>' + (label || 'Подождите...');
+            } else {
+                btn.disabled = false;
+                btn.textContent = label;
+            }
+        }
+
+        // Мост в React Native WebView (если страница открыта внутри приложения)
+        function postToApp(payload) {
+            try {
+                if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+                }
+            } catch (e) { /* no-op */ }
+        }
+
+        // Форматирование номера в +7 (XXX) XXX-XX-XX
+        function formatPhone(text) {
+            var digits = (text || '').replace(/\D/g, '');
+            if (digits.startsWith('8')) digits = '7' + digits.slice(1);
+            if (digits.length && !digits.startsWith('7')) digits = '7' + digits;
+            digits = digits.slice(0, 11);
+            var out = '';
+            if (digits.length > 0) out = '+7';
+            if (digits.length > 1) out += ' (' + digits.slice(1, 4);
+            if (digits.length >= 4) out += ')';
+            if (digits.length > 4) out += ' ' + digits.slice(4, 7);
+            if (digits.length > 7) out += '-' + digits.slice(7, 9);
+            if (digits.length > 9) out += '-' + digits.slice(9, 11);
+            return out;
+        }
+
+        els.phone.addEventListener('input', function () {
+            els.phone.value = formatPhone(els.phone.value);
+            var digits = els.phone.value.replace(/\D/g, '');
+            els.startBtn.disabled = digits.length !== 11;
+        });
+
+        function init() {
+            if (typeof MobileID === 'undefined') {
+                showStatus('Модуль авторизации недоступен.', 'error');
+                return;
+            }
+
+            // tokenUrl — эндпоинт нашего backend. Относительный путь работает,
+            // если /api проксируется на этот же домен (api-iceberg.ru).
+            var tokenUrl = params_tokenUrl();
+
+            mid = new MobileID({ tokenUrl: tokenUrl });
+
+            mid.on('ready', function () {
+                showStatus('');
+            });
+            mid.on('pending', function () {
+                showStatus('Проверяем номер. Подтвердите запрос на телефоне, если появится...', 'info');
+            });
+            mid.on('otp_required', function () {
+                els.phoneStep.classList.add('hidden');
+                els.otpStep.classList.remove('hidden');
+                setLoading(els.startBtn, false, 'Подтвердить');
+                showStatus('Мы отправили код в SMS. Введите его.', 'info');
+                els.otp.focus();
+            });
+            mid.on('invalid_code', function () {
+                setLoading(els.otpBtn, false, 'Подтвердить код');
+                showStatus('Неверный код. Попробуйте ещё раз.', 'error');
+            });
+            mid.on('verified', function (data) {
+                showStatus('Номер подтверждён!', 'info');
+                postToApp({
+                    type: 'verified',
+                    session_id: mid.getSessionId ? mid.getSessionId() : (data && data.session_id),
+                    verify_token: data && data.verify_token,
+                    phone: mid.getPhone ? mid.getPhone() : currentPhone,
+                });
+            });
+            mid.on('rejected', function () {
+                setLoading(els.startBtn, false, 'Подтвердить');
+                setLoading(els.otpBtn, false, 'Подтвердить код');
+                showStatus('Авторизация отклонена. Попробуйте снова.', 'error');
+                postToApp({ type: 'rejected' });
+                resetToPhone();
+            });
+            mid.on('expired', function () {
+                setLoading(els.startBtn, false, 'Подтвердить');
+                setLoading(els.otpBtn, false, 'Подтвердить код');
+                showStatus('Время вышло. Начните заново.', 'error');
+                postToApp({ type: 'expired' });
+                resetToPhone();
+            });
+            mid.on('error', function (err) {
+                setLoading(els.startBtn, false, 'Подтвердить');
+                setLoading(els.otpBtn, false, 'Подтвердить код');
+                var msg = (err && err.message) ? err.message : 'Произошла ошибка.';
+                showStatus(msg, 'error');
+                postToApp({ type: 'error', message: msg, code: err && err.code });
+            });
+        }
+
+        function params_tokenUrl() {
+            return params_get('tokenUrl') || '/api/auth/mobileid/token';
+        }
+        function params_get(key) {
+            return new URLSearchParams(window.location.search).get(key);
+        }
+
+        function resetToPhone() {
+            els.otpStep.classList.add('hidden');
+            els.phoneStep.classList.remove('hidden');
+            els.otp.value = '';
+        }
+
+        els.startBtn.addEventListener('click', async function () {
+            if (!mid) return;
+            currentPhone = els.phone.value;
+            setLoading(els.startBtn, true, 'Проверяем...');
+            showStatus('');
+            try {
+                await mid.init();
+                await mid.start(currentPhone);
+            } catch (e) {
+                setLoading(els.startBtn, false, 'Подтвердить');
+                showStatus('Не удалось начать проверку. Повторите.', 'error');
+                postToApp({ type: 'error', message: String(e && e.message || e) });
+            }
+        });
+
+        els.otpBtn.addEventListener('click', async function () {
+            if (!mid) return;
+            var code = (els.otp.value || '').replace(/\D/g, '');
+            if (code.length < 4) {
+                showStatus('Введите код полностью.', 'error');
+                return;
+            }
+            setLoading(els.otpBtn, true, 'Проверяем...');
+            showStatus('');
+            try {
+                await mid.submitOTP(code);
+            } catch (e) {
+                setLoading(els.otpBtn, false, 'Подтвердить код');
+                showStatus('Не удалось отправить код. Повторите.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
