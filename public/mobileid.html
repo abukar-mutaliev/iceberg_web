@@ -380,6 +380,22 @@
             els.startBtn.disabled = digits.length !== 11;
         });
 
+        // Номер может прийти из приложения: ?phone=%2B79161234567&lock=1.
+        // lock=1 нужен при регистрации — там номер уже введён в форме,
+        // и он должен совпасть с подтверждённым.
+        (function applyPhonePrefill() {
+            var prefill = params_get('phone');
+            if (!prefill) return;
+
+            els.phone.value = formatPhone(prefill);
+            var digits = els.phone.value.replace(/\D/g, '');
+            els.startBtn.disabled = digits.length !== 11;
+
+            if (digits.length === 11 && params_get('lock') === '1') {
+                els.phone.readOnly = true;
+            }
+        })();
+
         function init() {
             if (typeof MobileID === 'undefined') {
                 showStatus('Модуль авторизации недоступен.', 'error');
