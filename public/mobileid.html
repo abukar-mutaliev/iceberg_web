@@ -194,7 +194,10 @@
             s.src = sdkSrc;
             s.async = true;
             s.onerror = function () {
-                showStatus('Не удалось загрузить модуль авторизации. Повторите позже.', 'error');
+                var message = 'Не удалось загрузить форму входа по номеру. '
+                    + 'Проверьте подключение к интернету и попробуйте ещё раз.';
+                showStatus(message, 'error');
+                postToApp({ type: 'error', code: 'SDK_LOAD_FAILED', message: message, userMessage: message });
             };
             s.onload = init;
             document.head.appendChild(s);
@@ -204,6 +207,7 @@
         var currentPhone = '';
         var pendingTimer = null;
         var pendingStartedAt = 0;
+        var errorReported = false;
 
         var els = {
             phone: document.getElementById('phone'),
@@ -218,6 +222,89 @@
         function showStatus(text, kind) {
             els.status.textContent = text || '';
             els.status.className = 'status ' + (kind || 'info');
+        }
+
+        // Ошибки приходят от SDK, нашего backend и от сети в разном виде
+        // ({status, data}, Error, строка). Пользователю показываем только
+        // понятный текст с подсказкой, что делать дальше.
+        var ERROR_BY_CODE = {
+            INVALID_PHONE: 'Проверьте номер телефона: он должен начинаться с +7 и содержать 11 цифр.',
+            INIT_FAILED: 'Не удалось подключиться к сервису входа по номеру. Попробуйте ещё раз через минуту.',
+            START_FAILED: 'Не удалось начать проверку номера. Проверьте номер и попробуйте снова.',
+            START_EXCEPTION: 'Не удалось начать проверку номера. Проверьте номер и попробуйте снова.',
+            OTP_FAILED: 'Не удалось отправить код. Проверьте связь и попробуйте снова.'
+        };
+
+        var ERROR_BY_STATUS = {
+            400: 'Проверьте номер телефона и попробуйте снова.',
+            401: 'Сервис не подтвердил запрос. Начните проверку заново.',
+            403: 'Сервис не подтвердил запрос. Начните проверку заново.',
+            404: 'Вход по номеру телефона сейчас недоступен. Попробуйте войти по email и паролю.',
+            409: 'Проверка для этого номера уже идёт. Подождите немного и попробуйте снова.',
+            429: 'Слишком много попыток. Подождите пару минут и попробуйте снова.',
+            500: 'Сервис входа по номеру временно недоступен. Попробуйте позже.',
+            502: 'Сервис входа по номеру временно недоступен. Попробуйте через минуту.',
+            503: 'Сервис входа по номеру временно недоступен. Попробуйте через минуту.',
+            504: 'Сервер не успел ответить. Попробуйте ещё раз.'
+        };
+
+        function errorStatus(err) {
+            if (!err || typeof err !== 'object') return 0;
+            return Number(err.status) || 0;
+        }
+
+        function rawErrorText(err) {
+            if (!err) return '';
+            if (typeof err === 'string') return err;
+            if (err.data) {
+                return String(err.data.message || err.data.error || '');
+            }
+            return String(err.message || '');
+        }
+
+        // Текст считаем годным для показа, только если он на русском:
+        // технические строки вида "Network error" или "undefined" не помогают.
+        function isHumanText(text) {
+            return !!text && /[а-яё]/i.test(text);
+        }
+
+        function friendlyError(code, err) {
+            var status = errorStatus(err);
+            var raw = rawErrorText(err);
+
+            if (status === 0 && !isHumanText(raw)) {
+                return 'Нет связи с сервером. Проверьте подключение к интернету и попробуйте снова.';
+            }
+            if (isHumanText(raw)) {
+                return raw;
+            }
+            if (ERROR_BY_STATUS[status]) {
+                return ERROR_BY_STATUS[status];
+            }
+            if (status >= 500) {
+                return ERROR_BY_STATUS[500];
+            }
+            return ERROR_BY_CODE[code] || 'Не удалось подтвердить номер. Попробуйте ещё раз.';
+        }
+
+        function reportError(code, err, btn, btnLabel) {
+            // SDK сначала эмитит событие error, а затем реджектит промис —
+            // без этого флага пользователь получил бы два одинаковых сообщения.
+            if (errorReported) return;
+            errorReported = true;
+            clearPendingTimer();
+            if (btn) {
+                setLoading(btn, false, btnLabel);
+            }
+            var message = friendlyError(code, err);
+            showStatus(message, 'error');
+            postToApp({
+                type: 'error',
+                code: code,
+                message: rawErrorText(err) || message,
+                userMessage: message,
+                status: errorStatus(err)
+            });
         }
 
         function setLoading(btn, loading, label) {
@@ -314,6 +401,7 @@
             });
             mid.on('otp_required', function () {
                 clearPendingTimer();
+                errorReported = false;
                 els.phoneStep.classList.add('hidden');
                 els.otpStep.classList.remove('hidden');
                 setLoading(els.startBtn, false, 'Подтвердить');
@@ -351,12 +439,8 @@
                 resetToPhone();
             });
             mid.on('error', function (err) {
-                clearPendingTimer();
-                setLoading(els.startBtn, false, 'Подтвердить');
                 setLoading(els.otpBtn, false, 'Подтвердить код');
-                var msg = (err && err.message) ? err.message : 'Произошла ошибка.';
-                showStatus(msg, 'error');
-                postToApp({ type: 'error', message: msg, code: err && err.code });
+                reportError((err && err.code) || 'START_FAILED', err, els.startBtn, 'Подтвердить');
             });
         }
 
@@ -376,17 +460,14 @@
         els.startBtn.addEventListener('click', async function () {
             if (!mid) return;
             currentPhone = els.phone.value;
+            errorReported = false;
             setLoading(els.startBtn, true, 'Проверяем...');
             showStatus('');
             try {
                 await mid.init();
                 await mid.start(currentPhone);
             } catch (e) {
-                clearPendingTimer();
-                setLoading(els.startBtn, false, 'Подтвердить');
-                var errMsg = (e && e.data && e.data.error) ? e.data.error : String(e && e.message || e);
-                showStatus('Не удалось начать проверку: ' + errMsg, 'error');
-                postToApp({ type: 'error', message: errMsg, code: 'START_EXCEPTION' });
+                reportError('START_EXCEPTION', e, els.startBtn, 'Подтвердить');
             }
         });
 
@@ -397,13 +478,13 @@
                 showStatus('Введите код полностью.', 'error');
                 return;
             }
+            errorReported = false;
             setLoading(els.otpBtn, true, 'Проверяем...');
             showStatus('');
             try {
                 await mid.submitOTP(code);
             } catch (e) {
-                setLoading(els.otpBtn, false, 'Подтвердить код');
-                showStatus('Не удалось отправить код. Повторите.', 'error');
+                reportError('OTP_FAILED', e, els.otpBtn, 'Подтвердить код');
             }
         });
     </script>
