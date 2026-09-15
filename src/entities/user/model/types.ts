@@ -20,6 +20,7 @@ export interface Employee {
   position?: string | null;
   phone?: string | null;
   address?: string | null;
+  warehouseId?: number | null;
 }
 
 export interface Admin {

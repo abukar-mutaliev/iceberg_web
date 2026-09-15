@@ -74,3 +74,48 @@ export interface WarehouseSummary {
   district: WarehouseDistrict;
   _count: { productStocks: number; orders: number };
 }
+
+export interface ProductStockPriceInfo {
+  warehousePrice: number | null;
+  basePrice: number;
+  discount: number;
+  discountPercent: number;
+  effectivePrice: number;
+}
+
+export interface ProductWarehouseStockRow {
+  id: number;
+  warehouseId: number;
+  warehouseName: string;
+  warehouseAddress: string;
+  isMain?: boolean;
+  isActive?: boolean;
+  district: string;
+  quantity: number;
+  reserved: number;
+  available: number;
+  updatedAt: string;
+  priceInfo?: ProductStockPriceInfo;
+}
+
+export interface ProductStockSummary {
+  totalStock: number;
+  totalReserved: number;
+  totalAvailable: number;
+  warehousesCount: number;
+  warehousesWithStock: number;
+}
+
+export interface ProductStockResponse {
+  product: { id: number; name: string; price: number; isActive: boolean };
+  stocks: ProductWarehouseStockRow[];
+  summary: ProductStockSummary;
+}
+
+export interface WarehouseLayoutItem {
+  warehouseId: number;
+  quantity: number;
+  reserved?: number;
+  warehousePrice?: number | null;
+  isMain?: boolean;
+}

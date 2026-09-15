@@ -8,7 +8,10 @@ import { Card, Form, Input, InputNumber, Button, Space, Typography, Upload, Imag
 import { ArrowLeftOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { getProductById, createProduct, updateProduct, getCategories, uploadProductImage } from '@/entities/product';
 import { getProfile, getSuppliers } from '@/entities/user';
+import { getWarehouses, getProductStock } from '@/entities/warehouse';
+import type { WarehouseLayoutItem } from '@/entities/warehouse';
 import { buildImageUrl, imageUrlToStoragePath } from '@/shared/lib';
+import { WarehouseStockFields } from './WarehouseStockFields';
 
 // ── schema ───────────────────────────────────────────────────────────────────
 
@@ -52,11 +55,26 @@ function extractApiErrors(err: unknown): ApiValidationError[] {
   return [];
 }
 
+function catalogStockFromLayout(items: WarehouseLayoutItem[]): number {
+  return items.find((item) => item.isMain)?.quantity ?? 0;
+}
+
+function toWarehousePayload(items: WarehouseLayoutItem[], includePrice: boolean) {
+  return items
+    .filter((item) => (item.quantity || 0) > 0 || (item.reserved || 0) > 0)
+    .map((item) => ({
+      warehouseId: item.warehouseId,
+      quantity: item.quantity,
+      ...(includePrice && item.warehousePrice != null ? { warehousePrice: item.warehousePrice } : {}),
+    }));
+}
+
 function buildFormData(
   values: ProductFormValues,
   imageFiles: File[],
   removeImageUrls?: string[],
   includeSupplierId = true,
+  warehousePayload?: ReturnType<typeof toWarehousePayload>,
 ): FormData {
   const fd = new FormData();
   fd.append('name', values.name);
@@ -68,6 +86,10 @@ function buildFormData(
   if (values.weight != null && values.weight > 0) fd.append('weight', String(values.weight));
   fd.append('categories', JSON.stringify(values.categoryIds ?? []));
   if (includeSupplierId && values.supplierId != null) fd.append('supplierId', String(values.supplierId));
+  if (warehousePayload) {
+    fd.append('warehouses', JSON.stringify(warehousePayload));
+    fd.append('warehouseStocks', JSON.stringify(warehousePayload));
+  }
   imageFiles.forEach((f) => fd.append('images', f));
   if (removeImageUrls?.length) {
     const pathsForApi = removeImageUrls.map((u) => imageUrlToStoragePath(u)).filter(Boolean);
@@ -76,7 +98,11 @@ function buildFormData(
   return fd;
 }
 
-function buildCreatePayload(values: ProductFormValues, includeSupplierId = true): Record<string, unknown> {
+function buildCreatePayload(
+  values: ProductFormValues,
+  includeSupplierId = true,
+  warehousePayload?: ReturnType<typeof toWarehousePayload>,
+): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     name: values.name,
     description: values.description ?? '',
@@ -89,6 +115,7 @@ function buildCreatePayload(values: ProductFormValues, includeSupplierId = true)
   if (values.boxPrice != null && values.boxPrice > 0) payload.boxPrice = values.boxPrice;
   if (values.weight != null && values.weight > 0) payload.weight = values.weight;
   if (includeSupplierId && values.supplierId != null) payload.supplierId = values.supplierId;
+  if (warehousePayload) payload.warehouses = JSON.stringify(warehousePayload);
 
   return payload;
 }
@@ -108,6 +135,8 @@ export function ProductFormPage() {
   const [showModerationWarning, setShowModerationWarning] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState('');
   const [imageError, setImageError] = useState<string | null>(null);
+  const [warehouseLayout, setWarehouseLayout] = useState<WarehouseLayoutItem[]>([]);
+  const [warehouseLayoutError, setWarehouseLayoutError] = useState<string | null>(null);
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
 
@@ -129,6 +158,24 @@ export function ProductFormPage() {
   });
 
   const isAdmin = profile?.role === 'ADMIN';
+  const isStaff = profile?.role === 'ADMIN' || profile?.role === 'EMPLOYEE';
+  const canSetWarehousePrice = Boolean(profile?.admin?.isSuperAdmin);
+  const allowedWarehouseIds = profile?.role === 'EMPLOYEE' && profile.employee?.warehouseId
+    ? [profile.employee.warehouseId]
+    : null;
+
+  const { data: warehousesData } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: () => getWarehouses({ limit: 100 }),
+    enabled: isStaff,
+  });
+  const warehouses = warehousesData?.warehouses ?? [];
+
+  const { data: productStock } = useQuery({
+    queryKey: ['product-stock', productId],
+    queryFn: () => getProductStock(productId, { includeInactive: true }),
+    enabled: isEdit && isStaff && productId > 0,
+  });
 
   const { data: suppliersData } = useQuery({
     queryKey: ['suppliers', supplierSearch],
@@ -176,6 +223,22 @@ export function ProductFormPage() {
     });
     setExistingImages(product.images ?? []);
   }, [product, form, profile]);
+
+  useEffect(() => {
+    if (!productStock?.stocks) return;
+    setWarehouseLayout(productStock.stocks.map((stock) => ({
+      warehouseId: stock.warehouseId,
+      quantity: stock.quantity,
+      reserved: stock.reserved,
+      isMain: stock.isMain,
+      warehousePrice: stock.priceInfo?.warehousePrice ?? null,
+    })));
+  }, [productStock]);
+
+  useEffect(() => {
+    if (!isStaff) return;
+    form.setValue('stockQuantity', catalogStockFromLayout(warehouseLayout));
+  }, [warehouseLayout, isStaff, form]);
 
   // ── mutations ────────────────────────────────────────────────────────────
 
@@ -245,6 +308,7 @@ export function ProductFormPage() {
       message.success('Продукт успешно обновлён');
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['product', productId] });
+      queryClient.invalidateQueries({ queryKey: ['product-stock', productId] });
       navigate('/products');
     },
     onError: handleApiErrors,
@@ -257,6 +321,13 @@ export function ProductFormPage() {
       return;
     }
     setImageError(null);
+
+    if (isStaff && warehouseLayout.every((item) => (item.quantity || 0) <= 0)) {
+      setWarehouseLayoutError('Укажите количество коробок хотя бы для одного склада');
+      return;
+    }
+    setWarehouseLayoutError(null);
+
     if (isEdit) {
       setShowModerationWarning(true);
     } else {
@@ -265,13 +336,20 @@ export function ProductFormPage() {
   };
 
   const doSubmit = (values: ProductFormValues) => {
+    const warehousePayload = isStaff
+      ? toWarehousePayload(warehouseLayout, canSetWarehousePrice)
+      : undefined;
+    const nextValues = {
+      ...values,
+      stockQuantity: isStaff ? catalogStockFromLayout(warehouseLayout) : 0,
+    };
     const removeList = removeImageUrls.length ? removeImageUrls : undefined;
-    const formData = buildFormData(values, isEdit ? imageFiles : [], removeList, isAdmin);
+    const formData = buildFormData(nextValues, isEdit ? imageFiles : [], removeList, isAdmin, warehousePayload);
 
     if (isEdit && productId) {
       updateMutation.mutate({ id: productId, formData });
     } else {
-      createMutation.mutate(buildCreatePayload(values, isAdmin));
+      createMutation.mutate(buildCreatePayload(nextValues, isAdmin, warehousePayload));
     }
     setShowModerationWarning(false);
   };
@@ -466,19 +544,6 @@ export function ProductFormPage() {
                 )}
               />
             </Form.Item>
-            <Form.Item
-              label="Остаток (коробок)"
-              validateStatus={form.formState.errors.stockQuantity ? 'error' : undefined}
-              help={form.formState.errors.stockQuantity?.message}
-            >
-              <Controller
-                name="stockQuantity"
-                control={form.control}
-                render={({ field }) => (
-                  <InputNumber min={0} style={{ width: isMobile ? '100%' : 120 }} {...field} onChange={(v) => field.onChange(v ?? 0)} />
-                )}
-              />
-            </Form.Item>
             <Form.Item label="Вес (г)">
               <Controller
                 name="weight"
@@ -495,6 +560,23 @@ export function ProductFormPage() {
               />
             </Form.Item>
           </Space>
+
+          {isStaff ? (
+            <Form.Item
+              label="Остатки по складам"
+              required
+              validateStatus={warehouseLayoutError ? 'error' : undefined}
+              help={warehouseLayoutError ?? 'На витрине показывается доступный остаток склада доставки'}
+            >
+              <WarehouseStockFields
+                warehouses={warehouses}
+                value={warehouseLayout}
+                onChange={setWarehouseLayout}
+                canSetWarehousePrice={canSetWarehousePrice}
+                allowedWarehouseIds={allowedWarehouseIds}
+              />
+            </Form.Item>
+          ) : null}
 
           <Form.Item label="Категории">
             <Controller

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, Button, Space, Typography, Tag, Descriptions, Modal, Skeleton, Image, Form, InputNumber, Input, Grid } from 'antd';
+import { Card, Button, Space, Typography, Tag, Descriptions, Modal, Skeleton, Image, Form, InputNumber, Input, Grid, Table } from 'antd';
 import {
   ArrowLeftOutlined,
   EditOutlined,
@@ -13,6 +13,8 @@ import {
 } from '@ant-design/icons';
 import { getProductById, deleteProduct, getProductDisplayPrices, moderateProduct } from '@/entities/product';
 import { getProfile } from '@/entities/user';
+import { getProductStock } from '@/entities/warehouse';
+import type { ProductWarehouseStockRow } from '@/entities/warehouse';
 import { getApiMessage, buildImageUrl } from '@/shared/lib';
 import { message } from 'antd';
 import type { Product } from '@/entities/product';
@@ -223,9 +225,9 @@ function InfoCard({ product, viewerRole, isMobile }: { product: Product; viewerR
             </Text>
           </div>
           <div>
-            <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>Остаток</Text>
+            <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>Остаток на витрине</Text>
             <Text strong style={{ color: '#0f172a', fontSize: isMobile ? 17 : 20, lineHeight: 1.3 }}>
-              {product.stockQuantity.toLocaleString('ru-RU')} шт.
+              {product.stockQuantity.toLocaleString('ru-RU')} кор.
             </Text>
           </div>
         </div>
@@ -301,6 +303,13 @@ export function ProductDetailPage() {
   });
 
   const isAdmin = profile?.role === 'ADMIN';
+  const isStaff = profile?.role === 'ADMIN' || profile?.role === 'EMPLOYEE';
+
+  const { data: productStock } = useQuery({
+    queryKey: ['product-stock', productId],
+    queryFn: () => getProductStock(productId, { includeInactive: true }),
+    enabled: isStaff && productId > 0,
+  });
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteProduct(productId),
@@ -487,6 +496,38 @@ export function ProductDetailPage() {
           <InfoCard product={product} viewerRole={profile?.role} isMobile={isMobile} />
         </Card>
       </div>
+
+      {isStaff && productStock?.stocks?.length ? (
+        <Card
+          variant="borderless"
+          title="Остатки по складам"
+          style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)', borderRadius: 18 }}
+        >
+          <Table<ProductWarehouseStockRow>
+            size="small"
+            pagination={false}
+            rowKey="id"
+            dataSource={productStock.stocks}
+            columns={[
+              {
+                title: 'Склад',
+                dataIndex: 'warehouseName',
+                render: (name: string, row) => (
+                  <span>
+                    {name} {row.isMain ? <Tag color="blue">доставка</Tag> : null}
+                  </span>
+                ),
+              },
+              { title: 'Коробок', dataIndex: 'quantity', width: 110 },
+              { title: 'Резерв', dataIndex: 'reserved', width: 90 },
+              { title: 'Доступно', dataIndex: 'available', width: 110 },
+            ]}
+          />
+          <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+            Всего: {productStock.summary.totalStock} кор. · резерв {productStock.summary.totalReserved} · доступно {productStock.summary.totalAvailable}
+          </Typography.Text>
+        </Card>
+      ) : null}
 
       {/* Delete modal */}
       <Modal

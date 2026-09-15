@@ -109,7 +109,7 @@ export function ProductListPage() {
       },
     },
     {
-      title: 'Остаток (коробок)',
+      title: 'На витрине (кор.)',
       dataIndex: 'stockQuantity',
       key: 'stockQuantity',
       width: 130,

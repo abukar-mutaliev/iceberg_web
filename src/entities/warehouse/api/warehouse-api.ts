@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/api';
-import type { Warehouse, WarehouseSummary } from '../model/types';
+import type { Warehouse, WarehouseSummary, ProductStockResponse } from '../model/types';
 
 interface WarehousesListResponse {
   data: {
@@ -31,4 +31,16 @@ export async function getWarehouseById(id: number): Promise<Warehouse> {
   const w = data.data?.warehouse ?? (data.data as unknown as Warehouse);
   if (!w) throw new Error('Склад не найден');
   return w;
+}
+
+export async function getProductStock(
+  productId: number,
+  params: { includeInactive?: boolean } = {},
+): Promise<ProductStockResponse> {
+  const { data } = await apiClient.get<{ data: ProductStockResponse }>(
+    `/api/warehouses/product-stock/${productId}`,
+    { params },
+  );
+  if (!data.data) throw new Error('Не удалось загрузить остатки');
+  return data.data;
 }
