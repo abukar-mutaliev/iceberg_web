@@ -1,6 +1,7 @@
 import {
   getUserDisplayName,
   normalizeContactPhone,
+  UNSPECIFIED_CONTACT,
   type Admin,
   type AdminUserListItem,
   type AdminUserProfile,
@@ -30,6 +31,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
+}
+
+function normalizeOptionalText(value: unknown): string | null {
+  const text = asString(value)?.trim() ?? '';
+  if (!text || text === UNSPECIFIED_CONTACT) return null;
+  return text;
 }
 
 function asNumber(value: unknown): number | null {
@@ -95,7 +102,7 @@ export function toAdmin(value: unknown): Admin {
     userId: asNumber(row.userId) ?? undefined,
     name: asString(row.name) ?? '',
     phone: normalizeContactPhone(asString(row.phone)),
-    address: asString(row.address),
+    address: normalizeOptionalText(row.address),
     isSuperAdmin: row.isSuperAdmin === true,
   };
 }
@@ -108,7 +115,7 @@ export function toClient(value: unknown): Client {
     userId: asNumber(row.userId) ?? undefined,
     name: asString(row.name) ?? '',
     phone: normalizeContactPhone(asString(row.phone)),
-    address: asString(row.address),
+    address: normalizeOptionalText(row.address),
     districtId: asNumber(row.districtId),
     district: toNamedRef(row.district),
     ordersCount: countFrom(count, 'orders'),
@@ -124,7 +131,7 @@ export function toEmployee(value: unknown): Employee {
     name: asString(row.name) ?? '',
     position: asString(row.position),
     phone: normalizeContactPhone(asString(row.phone)),
-    address: asString(row.address),
+    address: normalizeOptionalText(row.address),
     processingRole: asProcessingRole(row.processingRole),
     warehouseId: asNumber(row.warehouseId),
     warehouse: toNamedRef(row.warehouse),
@@ -143,7 +150,7 @@ export function toSupplier(value: unknown): Supplier {
     companyName: asString(row.companyName) ?? '',
     contactPerson: asString(row.contactPerson) ?? '',
     phone: normalizeContactPhone(asString(row.phone)),
-    address: asString(row.address),
+    address: normalizeOptionalText(row.address),
     bankAccount: asString(row.bankAccount),
     bik: asString(row.bik),
     inn: asString(row.inn),
@@ -161,7 +168,7 @@ export function toDriver(value: unknown): Driver {
     userId: asNumber(row.userId) ?? undefined,
     name: asString(row.name) ?? '',
     phone: normalizeContactPhone(asString(row.phone)),
-    address: asString(row.address),
+    address: normalizeOptionalText(row.address),
     warehouseId: asNumber(row.warehouseId),
     warehouse: toNamedRef(row.warehouse),
     districts: toNamedRefList(row.districts),

@@ -127,7 +127,6 @@ export function UserListPage() {
       dataIndex: 'displayName',
       key: 'displayName',
       width: isMobile ? 220 : undefined,
-      fixed: isMobile ? 'left' : undefined,
       render: (_: string, row) => (
         <Space>
           <Avatar size="small" src={buildImageUrl(row.avatar) || undefined} icon={<UserOutlined />} />
@@ -184,7 +183,6 @@ export function UserListPage() {
       title: '',
       key: 'actions',
       width: 110,
-      fixed: isMobile ? 'right' : undefined,
       render: (_: unknown, row) => (
         <Button
           type="link"
