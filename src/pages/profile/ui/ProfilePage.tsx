@@ -6,8 +6,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProfile, updateProfile, changePassword, initiateEmailChange, confirmEmailChange, uploadAvatar } from '@/entities/user';
-import type { ProfileUpdatePayload, User } from '@/entities/user';
+import {
+  getProfile,
+  updateProfile,
+  changePassword,
+  initiateEmailChange,
+  confirmEmailChange,
+  uploadAvatar,
+  PROCESSING_ROLE_LABELS,
+  USER_ROLE_LABELS,
+} from '@/entities/user';
+import type { ProcessingRole, ProfileUpdatePayload, User, UserRole } from '@/entities/user';
 import { ProductCard } from '@/entities/product';
 import { getProducts } from '@/entities/product';
 import type { Product } from '@/entities/product';
@@ -15,22 +24,6 @@ import { getApiMessage } from '@/shared/lib';
 import { tokenStorage } from '@/shared/api';
 
 const EMPTY_VALUE = '—';
-const ROLE_LABELS: Record<string, string> = {
-  CLIENT: 'Клиент',
-  EMPLOYEE: 'Сотрудник',
-  SUPPLIER: 'Поставщик',
-  ADMIN: 'Администратор',
-  DRIVER: 'Водитель',
-};
-
-const PROCESSING_ROLE_LABELS: Record<string, string> = {
-  PICKER: 'Сборщик',
-  PACKER: 'Упаковщик',
-  QUALITY_CHECKER: 'Контроль качества',
-  COURIER: 'Курьер',
-  SUPERVISOR: 'Супервайзер',
-  MANAGER: 'Менеджер',
-};
 
 const GENDER_LABELS: Record<string, string> = {
   MALE: 'Мужской',
@@ -122,13 +115,22 @@ function formatArrayField(field: string, value: unknown[]): string {
 
 function getRoleLabel(role: unknown): string {
   const roleValue = String(role ?? '');
-  return ROLE_LABELS[roleValue] ?? (roleValue || EMPTY_VALUE);
+  if (roleValue in USER_ROLE_LABELS) {
+    return USER_ROLE_LABELS[roleValue as UserRole];
+  }
+  return roleValue || EMPTY_VALUE;
 }
 
 function formatFieldValue(field: string, value: unknown): string {
   if (field === 'role') return getRoleLabel(value);
   if (field === 'gender') return GENDER_LABELS[String(value ?? '')] ?? formatProfileValue(value);
-  if (field === 'processingRole') return PROCESSING_ROLE_LABELS[String(value ?? '')] ?? formatProfileValue(value);
+  if (field === 'processingRole') {
+    const key = String(value ?? '');
+    if (key in PROCESSING_ROLE_LABELS) {
+      return PROCESSING_ROLE_LABELS[key as ProcessingRole];
+    }
+    return formatProfileValue(value);
+  }
   if (field === 'emailVerified' || field === 'phoneVerified') return value ? 'Да' : 'Нет';
   if (field === 'districts' || field === 'district') return formatDistrictValue(value);
   if (field === 'warehouse') return formatWarehouseValue(value);

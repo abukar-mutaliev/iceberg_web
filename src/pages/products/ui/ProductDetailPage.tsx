@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons';
 import { getProductById, deleteProduct, getProductDisplayPrices, moderateProduct } from '@/entities/product';
 import { getProfile } from '@/entities/user';
-import { getProductStock } from '@/entities/warehouse';
+import { getProductStock, getWarehouses } from '@/entities/warehouse';
 import type { ProductWarehouseStockRow } from '@/entities/warehouse';
 import { getApiMessage, buildImageUrl } from '@/shared/lib';
 import { message } from 'antd';
@@ -321,6 +321,19 @@ export function ProductDetailPage() {
     enabled: isStaff && productId > 0,
   });
 
+  const { data: warehousesData } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: () => getWarehouses({ limit: 100 }),
+    enabled: isStaff,
+  });
+
+  const stockRows: ProductWarehouseStockRow[] = (productStock?.stocks ?? []).map((row) => ({
+    ...row,
+    isMain: Boolean(
+      warehousesData?.warehouses.find((warehouse) => warehouse.id === row.warehouseId)?.isMain ?? row.isMain,
+    ),
+  }));
+
   const deleteMutation = useMutation({
     mutationFn: () => deleteProduct(productId),
     onSuccess: () => {
@@ -507,12 +520,12 @@ export function ProductDetailPage() {
             product={product}
             viewerRole={profile?.role}
             isMobile={isMobile}
-            availableToOrder={productStock?.stocks?.find((row) => row.isMain)?.available ?? product.stockQuantity}
+            availableToOrder={stockRows.find((row) => row.isMain)?.available ?? product.stockQuantity}
           />
         </Card>
       </div>
 
-      {isStaff && productStock?.stocks?.length ? (
+      {isStaff && productStock && stockRows.length ? (
         <Card
           variant="borderless"
           title="Склады"
@@ -523,7 +536,7 @@ export function ProductDetailPage() {
             size="small"
             pagination={false}
             rowKey="id"
-            dataSource={productStock.stocks}
+            dataSource={stockRows}
             columns={[
               {
                 title: 'Склад',
@@ -540,7 +553,7 @@ export function ProductDetailPage() {
             ]}
           />
           <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-            Всего: {productStock.summary.totalStock} кор. · резерв {productStock.summary.totalReserved} · доступно {productStock.summary.totalAvailable}
+            Всего: {productStock?.summary.totalStock} кор. · резерв {productStock?.summary.totalReserved} · доступно {productStock?.summary.totalAvailable}
           </Typography.Text>
         </Card>
       ) : null}

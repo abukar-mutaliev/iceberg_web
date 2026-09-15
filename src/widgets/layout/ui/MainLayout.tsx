@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Grid, ConfigProvider } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Grid, ConfigProvider, Badge } from 'antd';
 import {
   LogoutOutlined,
   MenuFoldOutlined,
@@ -11,10 +11,13 @@ import {
   MessageOutlined,
   UserOutlined,
   BankOutlined,
+  TeamOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import { logout } from '@/features/auth';
 import { useQuery } from '@tanstack/react-query';
 import { getProfile } from '@/entities/user';
+import { getStaffApplicationStats, userManagementKeys } from '@/features/user-management';
 import logo from '@/assets/logo/logo.png';
 
 const { Header, Sider, Content } = Layout;
@@ -40,11 +43,33 @@ export function MainLayout() {
   });
 
   const isAdmin = user?.role === 'ADMIN';
+  const isSuperAdmin = user?.admin?.isSuperAdmin === true;
+
+  const { data: applicationStats } = useQuery({
+    queryKey: userManagementKeys.applicationStats(),
+    queryFn: getStaffApplicationStats,
+    enabled: isSuperAdmin,
+    staleTime: 60_000,
+  });
+
+  const pendingApplications = applicationStats?.pending ?? 0;
 
   const menuItems = isAdmin
     ? [
         ...BASE_MENU,
         { key: '/warehouses', label: 'Склады', icon: <BankOutlined /> },
+        { key: '/users', label: 'Пользователи', icon: <TeamOutlined /> },
+        ...(isSuperAdmin
+          ? [{
+              key: '/staff-applications',
+              label: 'Заявки',
+              icon: (
+                <Badge count={pendingApplications} size="small" offset={[4, 0]}>
+                  <AuditOutlined style={{ color: 'inherit' }} />
+                </Badge>
+              ),
+            }]
+          : []),
       ]
     : BASE_MENU;
 

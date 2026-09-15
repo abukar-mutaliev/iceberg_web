@@ -8,4 +8,5 @@ export type {
   StaffApplicationPayload,
   StaffApplicationRole,
   StaffApplicationStatus,
-} from './api/staff-application-api';
+  StaffApplicationUser,
+} from '@/entities/staff-application';

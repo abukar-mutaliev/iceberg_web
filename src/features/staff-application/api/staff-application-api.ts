@@ -1,30 +1,17 @@
 import { apiClient } from '@/shared/api';
 import type { ApiResponse } from '@/shared/api';
+import type {
+  StaffApplication,
+  StaffApplicationPayload,
+} from '@/entities/staff-application';
 
-export type StaffApplicationRole = 'EMPLOYEE' | 'SUPPLIER' | 'DRIVER';
-export type StaffApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-
-export interface StaffApplication {
-  id: number;
-  userId: number;
-  desiredRole: StaffApplicationRole;
-  status: StaffApplicationStatus;
-  reason?: string | null;
-  experience?: string | null;
-  additionalInfo?: string | null;
-  districts?: string | null;
-  rejectionReason?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface StaffApplicationPayload {
-  desiredRole: StaffApplicationRole;
-  districts?: number[];
-  reason?: string;
-  experience?: string;
-  additionalInfo?: string;
-}
+export type {
+  StaffApplication,
+  StaffApplicationPayload,
+  StaffApplicationRole,
+  StaffApplicationStatus,
+  StaffApplicationUser,
+} from '@/entities/staff-application';
 
 export async function getMyStaffApplication(): Promise<StaffApplication | null> {
   const { data } = await apiClient.get<ApiResponse<{ application?: StaffApplication | null }>>('/api/staff-applications/me');

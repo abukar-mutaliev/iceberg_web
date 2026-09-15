@@ -28,10 +28,10 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import type { ColumnsType } from 'antd/es/table';
 
-import { getProfile } from '@/entities/user/api/profile-api';
+import { getProfile, USER_ROLE_LABELS } from '@/entities/user';
+import type { User } from '@/entities/user';
 import { getProducts } from '@/entities/product/api/product-api';
 import { getFeedbacksBySupplierId } from '@/entities/feedback/api/feedback-api';
-import type { User } from '@/entities/user';
 import type { Product } from '@/entities/product';
 import type { Feedback } from '@/entities/feedback';
 
@@ -56,12 +56,6 @@ const URGENCY_LABEL: Record<string, string> = {
   normal:    'Норма',
 };
 
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN: 'Администратор',
-  SUPPLIER: 'Поставщик',
-  EMPLOYEE: 'Сотрудник',
-  CLIENT: 'Клиент',
-};
 
 function pluralProducts(n: number) {
   if (n % 100 >= 11 && n % 100 <= 14) return `${n} товаров`;
@@ -884,7 +878,7 @@ export function DashboardPage() {
     <div>
       <Title level={4}>Кабинет</Title>
       <Card>
-        <p>Добро пожаловать! Ваша роль: {ROLE_LABEL[user.role] ?? user.role}</p>
+        <p>Добро пожаловать! Ваша роль: {USER_ROLE_LABELS[user.role] ?? user.role}</p>
       </Card>
     </div>
   );
