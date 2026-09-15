@@ -516,7 +516,7 @@ export function ProductDetailPage() {
         <Card
           variant="borderless"
           title="Склады"
-          extra={<Typography.Text type="secondary">Онлайн-заказы списываются со склада доставки</Typography.Text>}
+          extra={<Typography.Text type="secondary">Клиенты заказывают с главного склада</Typography.Text>}
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)', borderRadius: 18 }}
         >
           <Table<ProductWarehouseStockRow>
@@ -530,7 +530,7 @@ export function ProductDetailPage() {
                 dataIndex: 'warehouseName',
                 render: (name: string, row) => (
                   <span>
-                    {name} {row.isMain ? <Tag color="blue">онлайн-заказы</Tag> : null}
+                    {name} {row.isMain ? <Tag color="gold">Главный</Tag> : <Tag>Филиал</Tag>}
                   </span>
                 ),
               },

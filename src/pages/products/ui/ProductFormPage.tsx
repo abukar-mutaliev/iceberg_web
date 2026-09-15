@@ -566,7 +566,7 @@ export function ProductFormPage() {
               label="Остатки по складам"
               required
               validateStatus={warehouseLayoutError ? 'error' : undefined}
-              help={warehouseLayoutError ?? 'Клиенты заказывают со склада с меткой «онлайн-заказы». Положите коробки туда.'}
+              help={warehouseLayoutError ?? 'Клиенты заказывают с главного склада, не с филиала.'}
             >
               <WarehouseStockFields
                 warehouses={warehouses}

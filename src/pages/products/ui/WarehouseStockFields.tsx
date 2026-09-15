@@ -49,9 +49,9 @@ export function WarehouseStockFields({
     onChange(nextItem.quantity > 0 || reserved > 0 ? [...rest, nextItem] : rest);
   };
 
-  const delivery = rows.find((row) => row.isMain);
-  const availableToOrder = delivery
-    ? Math.max(0, (delivery.quantity || 0) - (delivery.reserved || 0))
+  const mainWarehouse = rows.find((row) => row.isMain);
+  const availableToOrder = mainWarehouse
+    ? Math.max(0, (mainWarehouse.quantity || 0) - (mainWarehouse.reserved || 0))
     : 0;
   const total = rows.reduce((sum, row) => sum + (row.quantity || 0), 0);
 
@@ -69,7 +69,7 @@ export function WarehouseStockFields({
             render: (name: string, row: (typeof rows)[number]) => (
               <span>
                 {name}{' '}
-                {row.isMain ? <Tag color="blue">онлайн-заказы</Tag> : null}
+                {row.isMain ? <Tag color="gold">Главный</Tag> : <Tag>Филиал</Tag>}
               </span>
             ),
           },
@@ -112,7 +112,7 @@ export function WarehouseStockFields({
         ]}
       />
       <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-        Доступно к заказу: {availableToOrder} кор. · физически на складах: {total} кор.
+        Доступно к заказу с главного склада: {availableToOrder} кор. · физически на складах: {total} кор.
       </Typography.Text>
     </div>
   );
