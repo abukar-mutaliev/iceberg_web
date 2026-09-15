@@ -110,7 +110,17 @@ function ImageGallery({ images, isMobile }: { images: string[]; isMobile: boolea
   );
 }
 
-function InfoCard({ product, viewerRole, isMobile }: { product: Product; viewerRole?: string; isMobile: boolean }) {
+function InfoCard({
+  product,
+  viewerRole,
+  isMobile,
+  availableToOrder,
+}: {
+  product: Product;
+  viewerRole?: string;
+  isMobile: boolean;
+  availableToOrder?: number;
+}) {
   const mod = MODERATION_CONFIG[product.moderationStatus];
   const { unitPrice, boxPrice: displayBoxPrice } = getProductDisplayPrices(product, { viewerRole });
   const showApprovedUnderProposal =
@@ -225,9 +235,9 @@ function InfoCard({ product, viewerRole, isMobile }: { product: Product; viewerR
             </Text>
           </div>
           <div>
-            <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>Остаток на витрине</Text>
+            <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>Доступно к заказу</Text>
             <Text strong style={{ color: '#0f172a', fontSize: isMobile ? 17 : 20, lineHeight: 1.3 }}>
-              {product.stockQuantity.toLocaleString('ru-RU')} кор.
+              {(availableToOrder ?? product.stockQuantity).toLocaleString('ru-RU')} кор.
             </Text>
           </div>
         </div>
@@ -493,14 +503,20 @@ export function ProductDetailPage() {
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)', borderRadius: 18 }}
           styles={{ body: { padding: isMobile ? 16 : 28 } }}
         >
-          <InfoCard product={product} viewerRole={profile?.role} isMobile={isMobile} />
+          <InfoCard
+            product={product}
+            viewerRole={profile?.role}
+            isMobile={isMobile}
+            availableToOrder={productStock?.stocks?.find((row) => row.isMain)?.available ?? product.stockQuantity}
+          />
         </Card>
       </div>
 
       {isStaff && productStock?.stocks?.length ? (
         <Card
           variant="borderless"
-          title="Остатки по складам"
+          title="Склады"
+          extra={<Typography.Text type="secondary">Онлайн-заказы списываются со склада доставки</Typography.Text>}
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)', borderRadius: 18 }}
         >
           <Table<ProductWarehouseStockRow>
@@ -514,7 +530,7 @@ export function ProductDetailPage() {
                 dataIndex: 'warehouseName',
                 render: (name: string, row) => (
                   <span>
-                    {name} {row.isMain ? <Tag color="blue">доставка</Tag> : null}
+                    {name} {row.isMain ? <Tag color="blue">онлайн-заказы</Tag> : null}
                   </span>
                 ),
               },

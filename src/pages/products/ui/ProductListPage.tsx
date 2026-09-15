@@ -109,7 +109,7 @@ export function ProductListPage() {
       },
     },
     {
-      title: 'На витрине (кор.)',
+      title: 'Доступно к заказу',
       dataIndex: 'stockQuantity',
       key: 'stockQuantity',
       width: 130,
