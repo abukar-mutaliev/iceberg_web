@@ -12,6 +12,20 @@ import { ClientAccessPage } from '@/pages/client-access';
 import { UserCreatePage, UserDetailPage, UserListPage } from '@/pages/users';
 import { StaffApplicationsPage } from '@/pages/staff-applications';
 import { MainLayout } from '@/widgets/layout';
+import {
+  AccountingSummaryPage,
+  AccountingSalesPage,
+  AccountingWarehousesPage,
+  AccountingMovementsPage,
+  AccountingSuppliesPage,
+  AccountingSupplyDetailPage,
+  AccountingSupplyCreatePage,
+  AccountingInventoryPage,
+  AccountingInventoryDetailPage,
+  AccountingControlPage,
+  AccountingAuditPage,
+  AccountingProductLedgerPage,
+} from '@/pages/accounting';
 
 export function AppRouter() {
   return (
@@ -66,6 +80,102 @@ export function AppRouter() {
           element={(
             <RoleGate roles={['ADMIN']} superAdmin fallback={<Navigate to="/users" replace />}>
               <StaffApplicationsPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting"
+          element={(
+            <RoleGate roles={['ADMIN']}>
+              <AccountingSummaryPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/sales"
+          element={(
+            <RoleGate roles={['ADMIN']}>
+              <AccountingSalesPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/warehouses"
+          element={(
+            <RoleGate roles={['ADMIN']}>
+              <AccountingWarehousesPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/movements"
+          element={(
+            <RoleGate roles={['ADMIN']}>
+              <AccountingMovementsPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/control"
+          element={(
+            <RoleGate roles={['ADMIN']}>
+              <AccountingControlPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/audit"
+          element={(
+            <RoleGate roles={['ADMIN']}>
+              <AccountingAuditPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/supplies"
+          element={(
+            <RoleGate roles={['ADMIN', 'EMPLOYEE']}>
+              <AccountingSuppliesPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/supplies/new"
+          element={(
+            <RoleGate roles={['ADMIN', 'EMPLOYEE']}>
+              <AccountingSupplyCreatePage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/supplies/:id"
+          element={(
+            <RoleGate roles={['ADMIN', 'EMPLOYEE']}>
+              <AccountingSupplyDetailPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/inventory"
+          element={(
+            <RoleGate roles={['ADMIN', 'EMPLOYEE']}>
+              <AccountingInventoryPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/inventory/:id"
+          element={(
+            <RoleGate roles={['ADMIN', 'EMPLOYEE']}>
+              <AccountingInventoryDetailPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="accounting/products/:id"
+          element={(
+            <RoleGate roles={['ADMIN']}>
+              <AccountingProductLedgerPage />
             </RoleGate>
           )}
         />

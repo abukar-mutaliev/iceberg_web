@@ -452,6 +452,11 @@ export function ProductDetailPage() {
         </Button>
 
         <Space wrap direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : undefined }}>
+          {isAdmin && (
+            <Button onClick={() => navigate(`/accounting/products/${product.id}`)} block={isMobile}>
+              Книга товара
+            </Button>
+          )}
           {isAdmin && isPending && (
             <>
               <Button

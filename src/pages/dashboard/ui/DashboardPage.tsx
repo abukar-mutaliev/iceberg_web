@@ -34,6 +34,8 @@ import { getProducts } from '@/entities/product/api/product-api';
 import { getFeedbacksBySupplierId } from '@/entities/feedback/api/feedback-api';
 import type { Product } from '@/entities/product';
 import type { Feedback } from '@/entities/feedback';
+import { getAccountingSummary, resolveClientProfile } from '@/entities/accounting';
+import { formatPrice } from '@/shared/lib';
 
 import { getCriticalStock, getWarehousesList } from '../api/dashboard-api';
 import type { CriticalStockItem, WarehouseItem } from '../api/dashboard-api';
@@ -322,6 +324,34 @@ function SupplierDashboard({
   );
 }
 
+function AccountingWidgets() {
+  const navigate = useNavigate();
+  const { data: user } = useQuery({ queryKey: ['profile'], queryFn: getProfile });
+  const profile = resolveClientProfile(user);
+  const enabled = profile === 'FULL' || profile === 'FINANCIER';
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard:accounting-summary'],
+    queryFn: () => getAccountingSummary({ period: 'month' }),
+    enabled,
+  });
+  if (!enabled) return null;
+  return (
+    <Card
+      title="Бухгалтерия за месяц"
+      extra={<Typography.Link onClick={() => navigate('/accounting')}>Открыть бухгалтерию</Typography.Link>}
+      style={{ marginBottom: 16 }}
+      loading={isLoading}
+    >
+      <Row gutter={[16, 16]}>
+        <Col xs={12} md={6}><Statistic title="Выручка" value={data?.revenue.net} formatter={(v) => formatPrice(Number(v))} /></Col>
+        <Col xs={12} md={6}><Statistic title="Доставка" value={data?.deliveryRevenue} formatter={(v) => formatPrice(Number(v))} /></Col>
+        <Col xs={12} md={6}><Statistic title="Прибыль" value={data?.grossProfit} formatter={(v) => formatPrice(Number(v))} /></Col>
+        <Col xs={12} md={6}><Statistic title="Оплаты net" value={data?.payments.net} formatter={(v) => formatPrice(Number(v))} /></Col>
+      </Row>
+    </Card>
+  );
+}
+
 // ─── Admin section ───────────────────────────────────────────────────────────
 
 interface AdminDashboardProps {
@@ -450,6 +480,8 @@ function AdminDashboard({
           </Tag>
         )}
       </Title>
+
+      <AccountingWidgets />
 
       {/* Top alerts */}
       {pendingCount > 0 && (

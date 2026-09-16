@@ -13,6 +13,8 @@ import {
   BankOutlined,
   TeamOutlined,
   AuditOutlined,
+  CalculatorOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import { logout } from '@/features/auth';
 import { useQuery } from '@tanstack/react-query';
@@ -43,6 +45,7 @@ export function MainLayout() {
   });
 
   const isAdmin = user?.role === 'ADMIN';
+  const isEmployee = user?.role === 'EMPLOYEE';
   const isSuperAdmin = user?.admin?.isSuperAdmin === true;
 
   const { data: applicationStats } = useQuery({
@@ -57,6 +60,7 @@ export function MainLayout() {
   const menuItems = isAdmin
     ? [
         ...BASE_MENU,
+        { key: '/accounting', label: 'Бухгалтерия', icon: <CalculatorOutlined /> },
         { key: '/warehouses', label: 'Склады', icon: <BankOutlined /> },
         { key: '/users', label: 'Пользователи', icon: <TeamOutlined /> },
         ...(isSuperAdmin
@@ -71,7 +75,13 @@ export function MainLayout() {
             }]
           : []),
       ]
-    : BASE_MENU;
+    : isEmployee
+      ? [
+          ...BASE_MENU,
+          { key: '/accounting/supplies', label: 'Поставки', icon: <InboxOutlined /> },
+          { key: '/accounting/inventory', label: 'Инвентаризация', icon: <AuditOutlined /> },
+        ]
+      : BASE_MENU;
 
   const handleLogout = () => {
     logout();
@@ -89,9 +99,12 @@ export function MainLayout() {
   const siderWidth = isMobile ? 50 : (effectiveCollapsed ? 80 : 200);
 
   // Highlight the first path segment, e.g. "/warehouses/5" → "/warehouses"
+  const segments = location.pathname.split('/').filter(Boolean);
   const selectedKey = location.pathname === '/'
     ? '/'
-    : `/${location.pathname.split('/').filter(Boolean)[0] ?? ''}`;
+    : (isEmployee && segments[0] === 'accounting' && (segments[1] === 'supplies' || segments[1] === 'inventory'))
+      ? `/accounting/${segments[1]}`
+      : `/${segments[0] ?? ''}`;
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

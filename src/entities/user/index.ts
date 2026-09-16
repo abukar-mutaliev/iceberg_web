@@ -12,6 +12,7 @@ export type {
   AdminUserListItem,
   UserDetail,
   ProfileUpdatePayload,
+  AccountingProfile,
 } from './model/types';
 export { USER_ROLE_LABELS, PROCESSING_ROLE_LABELS, PROCESSING_ROLES } from './model/constants';
 export {

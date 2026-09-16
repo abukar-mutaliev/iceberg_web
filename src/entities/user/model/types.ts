@@ -50,7 +50,10 @@ export interface Admin {
   phone?: string | null;
   address?: string | null;
   isSuperAdmin?: boolean;
+  accountingProfile?: AccountingProfile;
 }
+
+export type AccountingProfile = 'OPERATOR' | 'FINANCIER' | 'FULL';
 
 export interface Driver {
   id: number;
