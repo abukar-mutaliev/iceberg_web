@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, List, Rate, Button, Typography, Modal, Input, message, Select, Space, Grid } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
-import { getFeedbacksBySupplierId, replyToFeedback } from '@/entities/feedback';
+import { getFeedbacks, replyToFeedback } from '@/entities/feedback';
 import { getProfile } from '@/entities/user';
 import { getProducts } from '@/entities/product';
 import { formatDate } from '@/shared/lib';
@@ -10,6 +11,7 @@ import { getApiMessage } from '@/shared/lib';
 import type { Feedback } from '@/entities/feedback';
 
 export function FeedbacksPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
@@ -22,20 +24,20 @@ export function FeedbacksPage() {
 
   const { data: user, isLoading: isProfileLoading } = useQuery({ queryKey: ['profile'], queryFn: getProfile });
   const supplierId = user?.supplier?.id;
+  const isStaff = user?.role === 'ADMIN' || user?.role === 'EMPLOYEE';
+  const canViewFeedbacks = isStaff || !!supplierId;
+  const canReply = !!supplierId;
 
   const { data: feedbacksData, isLoading } = useQuery({
-    queryKey: ['feedbacks', supplierId, page, limit, productFilter],
-    queryFn: () =>
-      supplierId
-        ? getFeedbacksBySupplierId(supplierId, { page, limit, productId: productFilter })
-        : Promise.resolve({ data: [], pagination: { currentPage: 1, totalPages: 0, totalItems: 0 } }),
-    enabled: !!supplierId,
+    queryKey: ['feedbacks', user?.role, page, limit, productFilter],
+    queryFn: () => getFeedbacks({ page, limit, productId: productFilter }),
+    enabled: canViewFeedbacks,
   });
 
   const { data: productsData } = useQuery({
-    queryKey: ['products', 'all'],
-    queryFn: () => getProducts({ page: 1, limit: 100 }),
-    enabled: !!supplierId,
+    queryKey: ['products', 'all', user?.role],
+    queryFn: () => getProducts({ page: 1, limit: isStaff ? 500 : 100 }),
+    enabled: canViewFeedbacks,
   });
 
   const replyMutation = useMutation({
@@ -61,6 +63,11 @@ export function FeedbacksPage() {
     replyMutation.mutate({ id: selectedFeedback.id, text: replyText });
   };
 
+  const openProduct = (feedback: Feedback) => {
+    if (!feedback.productId) return;
+    navigate(`/products/${feedback.productId}`);
+  };
+
   const feedbacks = feedbacksData?.data ?? [];
   const pagination = feedbacksData?.pagination;
   const products = productsData?.data ?? [];
@@ -71,10 +78,10 @@ export function FeedbacksPage() {
   if (!user) {
     return <Typography.Text type="danger">Не удалось загрузить профиль</Typography.Text>;
   }
-  if (!supplierId) {
+  if (!canViewFeedbacks) {
     return (
       <Typography.Text type="secondary">
-        Отзывы доступны только для поставщиков. Ваша роль: {user.role}.
+        Отзывы доступны только для поставщиков и администраторов. Ваша роль: {user.role}.
       </Typography.Text>
     );
   }
@@ -92,6 +99,8 @@ export function FeedbacksPage() {
         <Select
           placeholder="Фильтр по продукту"
           allowClear
+          showSearch
+          optionFilterProp="label"
           style={{ width: isMobile ? '100%' : 280, maxWidth: '100%' }}
           value={productFilter}
           onChange={(value) => {
@@ -106,33 +115,56 @@ export function FeedbacksPage() {
         <List
           loading={isLoading}
           dataSource={feedbacks}
+          locale={{ emptyText: 'Отзывов пока нет' }}
           renderItem={(item) => (
             <List.Item
-              actions={[
-                <Button
-                  key="reply"
-                  type="link"
-                  icon={<MessageOutlined />}
-                  onClick={() => handleOpenReply(item)}
-                  block={isMobile}
-                >
-                  {item.supplierReply ? 'Изменить ответ' : 'Ответить'}
-                </Button>,
-              ]}
+              style={{ cursor: item.productId ? 'pointer' : 'default' }}
+              onClick={() => openProduct(item)}
+              actions={
+                canReply
+                  ? [
+                      <Button
+                        key="reply"
+                        type="link"
+                        icon={<MessageOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenReply(item);
+                        }}
+                        block={isMobile}
+                      >
+                        {item.supplierReply ? 'Изменить ответ' : 'Ответить'}
+                      </Button>,
+                    ]
+                  : undefined
+              }
             >
               <List.Item.Meta
                 title={
                   <Space wrap size={8}>
-                    <span>{item.product?.name ?? `Продукт #${item.productId}`}</span>
+                    <Typography.Link
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openProduct(item);
+                      }}
+                    >
+                      {item.product?.name ?? item.productName ?? `Продукт #${item.productId}`}
+                    </Typography.Link>
                     <Rate disabled value={item.rating} style={{ fontSize: isMobile ? 14 : undefined }} />
                   </Space>
                 }
                 description={
                   <div>
+                    {isStaff && item.product?.supplier?.companyName && (
+                      <Typography.Paragraph type="secondary" style={{ marginBottom: 4 }}>
+                        {item.product.supplier.companyName}
+                        {item.client?.name ? ` · ${item.client.name}` : ''}
+                      </Typography.Paragraph>
+                    )}
                     <Typography.Paragraph style={{ marginBottom: 8 }}>{item.comment ?? '—'}</Typography.Paragraph>
                     {item.supplierReply && (
                       <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
-                        <strong>Ваш ответ:</strong> {item.supplierReply}
+                        <strong>{canReply ? 'Ваш ответ:' : 'Ответ поставщика:'}</strong> {item.supplierReply}
                       </Typography.Paragraph>
                     )}
                     <Typography.Text type="secondary">{formatDate(item.createdAt)}</Typography.Text>

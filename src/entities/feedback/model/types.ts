@@ -1,6 +1,10 @@
 export interface FeedbackProduct {
   id: number;
   name: string;
+  supplier?: {
+    id: number;
+    companyName: string;
+  };
 }
 
 export interface FeedbackUser {
@@ -9,12 +13,19 @@ export interface FeedbackUser {
   avatar: string | null;
 }
 
+export interface FeedbackClient {
+  id: number;
+  name: string | null;
+}
+
 export interface Feedback {
   id: number;
   productId: number;
   product?: FeedbackProduct;
+  productName?: string;
   userId: number;
   user?: FeedbackUser;
+  client?: FeedbackClient;
   rating: number;
   comment: string | null;
   supplierReply: string | null;
