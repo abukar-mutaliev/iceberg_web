@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Input, InputNumber, Table, Typography, message, Alert, Select, Space } from 'antd';
+import { Button, Card, Input, InputNumber, Table, Typography, message, Alert, Select, Space, Tag } from 'antd';
 import {
   getInventoryCount,
   completeInventoryCount,
@@ -9,7 +9,7 @@ import {
   cancelInventoryCount,
   lookupBarcode,
 } from '@/entities/accounting';
-import { accountingKeys, createIdempotencyKey } from '@/features/accounting';
+import { accountingKeys, createIdempotencyKey, AccountingNav, inventoryStatusLabel, INVENTORY_STATUS_COLORS } from '@/features/accounting';
 import { getWarehouses } from '@/entities/warehouse';
 import { getApiMessage } from '@/shared/lib';
 
@@ -81,7 +81,12 @@ export function AccountingInventoryDetailPage() {
     }
   };
 
-  if (error) return <Alert type="error" message={getApiMessage(error)} />;
+  if (error) return (
+    <div>
+      <AccountingNav />
+      <Alert type="error" message={getApiMessage(error)} />
+    </div>
+  );
 
   const rows = (isNew ? lines : (data?.lines || []).map((l) => ({
     productId: l.productId,
@@ -93,8 +98,12 @@ export function AccountingInventoryDetailPage() {
 
   return (
     <div>
+      <AccountingNav />
       <Button type="link" onClick={() => navigate('/accounting/inventory')} style={{ paddingLeft: 0 }}>← К списку</Button>
-      <Title level={4}>{isNew ? 'Новая инвентаризация' : `Инвентаризация #${id}`}</Title>
+      <Title level={4} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {isNew ? 'Новая инвентаризация' : `Инвентаризация #${id}`}
+        {!isNew && data?.status ? <Tag color={INVENTORY_STATUS_COLORS[data.status]}>{inventoryStatusLabel(data.status)}</Tag> : null}
+      </Title>
       <Card>
         {isNew && (
           <Select

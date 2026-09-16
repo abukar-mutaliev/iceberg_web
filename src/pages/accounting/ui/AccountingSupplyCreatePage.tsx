@@ -6,6 +6,7 @@ import { createSupply, lookupBarcode } from '@/entities/accounting';
 import { getWarehouses } from '@/entities/warehouse';
 import { getSuppliers } from '@/entities/user';
 import { getApiMessage } from '@/shared/lib';
+import { AccountingNav } from '@/features/accounting';
 
 const { Title } = Typography;
 
@@ -53,6 +54,7 @@ export function AccountingSupplyCreatePage() {
 
   return (
     <div>
+      <AccountingNav />
       <Title level={4}>Новая поставка</Title>
       <Card>
         <Form

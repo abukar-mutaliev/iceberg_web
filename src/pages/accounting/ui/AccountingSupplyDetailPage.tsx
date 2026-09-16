@@ -2,14 +2,14 @@ import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Button, Card, Descriptions, Input, InputNumber, Modal, Space, Table, Typography, Grid, Alert, message,
+  Button, Card, Descriptions, Input, InputNumber, Modal, Space, Table, Typography, Grid, Alert, message, Tag,
 } from 'antd';
 import { getProfile } from '@/entities/user';
 import {
   getSupply, receiveSupply, cancelSupply, reverseSupply, lookupBarcode, updateSupply,
   resolveClientProfile, canSeeCost, canReverseSupply, type SupplyDocumentLine,
 } from '@/entities/accounting';
-import { accountingKeys, createIdempotencyKey } from '@/features/accounting';
+import { accountingKeys, createIdempotencyKey, AccountingNav, supplyStatusLabel, SUPPLY_STATUS_COLORS } from '@/features/accounting';
 import { getApiMessage, formatDate, formatPrice } from '@/shared/lib';
 
 const { Title } = Typography;
@@ -93,16 +93,29 @@ export function AccountingSupplyDetailPage() {
     { title: 'Сторно', dataIndex: 'reversedQty' },
   ], [showCost]);
 
-  if (error) return <Alert type="error" message={getApiMessage(error)} />;
-  if (!data && !isLoading) return <Alert type="error" message="Документ не найден" />;
+  if (error) return (
+    <div>
+      <AccountingNav />
+      <Alert type="error" message={getApiMessage(error)} />
+    </div>
+  );
+  if (!data && !isLoading) return (
+    <div>
+      <AccountingNav />
+      <Alert type="error" message="Документ не найден" />
+    </div>
+  );
 
   return (
     <div>
+      <AccountingNav />
       <Button type="link" onClick={() => navigate('/accounting/supplies')} style={{ paddingLeft: 0 }}>← К списку</Button>
       <Title level={screens.md ? 4 : 5}>Поставка {data?.number}</Title>
       <Card loading={isLoading}>
         <Descriptions column={screens.md ? 2 : 1} size="small">
-          <Descriptions.Item label="Статус">{data?.status}</Descriptions.Item>
+          <Descriptions.Item label="Статус">
+            {data?.status ? <Tag color={SUPPLY_STATUS_COLORS[data.status]}>{supplyStatusLabel(data.status)}</Tag> : '—'}
+          </Descriptions.Item>
           <Descriptions.Item label="Склад">{data?.warehouse?.name}</Descriptions.Item>
           <Descriptions.Item label="Поставщик">{data?.supplier?.companyName}</Descriptions.Item>
           <Descriptions.Item label="Дата">{formatDate(data?.documentDate)}</Descriptions.Item>

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, Table, Typography, Grid, Empty, Alert } from 'antd';
 import { getProfile } from '@/entities/user';
 import { getWarehouseComparison, resolveClientProfile, canSeeCost } from '@/entities/accounting';
-import { accountingKeys, PeriodFilter, Money, periodToQuery } from '@/features/accounting';
+import { accountingKeys, PeriodFilter, Money, periodToQuery, AccountingNav } from '@/features/accounting';
 import type { PeriodPreset } from '@/features/accounting';
 import { getApiMessage } from '@/shared/lib';
 
@@ -20,10 +20,16 @@ export function AccountingWarehousesPage() {
     queryFn: () => getWarehouseComparison(filters),
   });
 
-  if (error) return <Alert type="error" message={getApiMessage(error)} />;
+  if (error) return (
+    <div>
+      <AccountingNav />
+      <Alert type="error" message={getApiMessage(error)} />
+    </div>
+  );
 
   return (
     <div>
+      <AccountingNav />
       <Title level={screens.md ? 4 : 5}>Сравнение складов</Title>
       <PeriodFilter preset={preset} onChange={(next) => { setPreset(next.preset); setFilters(next); }} />
       <Card style={{ marginTop: 16 }}>

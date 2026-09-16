@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Card, Col, Row, Statistic, Table, Typography, Button, Space, Grid, Empty, Alert } from 'antd';
+import { Card, Col, Row, Statistic, Table, Typography, Button, Grid, Empty, Alert } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getProfile } from '@/entities/user';
 import { getAccountingSummary, resolveClientProfile, canSeeCost } from '@/entities/accounting';
-import { accountingKeys, PeriodFilter, Money, periodToQuery } from '@/features/accounting';
+import { accountingKeys, PeriodFilter, Money, periodToQuery, AccountingNav } from '@/features/accounting';
 import type { PeriodPreset } from '@/features/accounting';
 import { exportAccounting } from '@/entities/accounting';
 import { getApiMessage } from '@/shared/lib';
@@ -52,27 +52,32 @@ export function AccountingSummaryPage() {
   ], [showCost]);
 
   if (error) {
-    return <Alert type="error" message={getApiMessage(error)} />;
+    return (
+      <div>
+        <AccountingNav
+          extra={(
+            <>
+              <Button onClick={() => download('csv')}>CSV</Button>
+              <Button onClick={() => download('xlsx')}>Excel</Button>
+            </>
+          )}
+        />
+        <Alert type="error" message={getApiMessage(error)} />
+      </div>
+    );
   }
 
   return (
     <div>
-      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
-        <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>Бухгалтерия</Title>
-        <Space wrap>
-          <Button onClick={() => navigate('/accounting/sales')}>Продажи</Button>
-          <Button onClick={() => navigate('/accounting/warehouses')}>Склады</Button>
-          <Button onClick={() => navigate('/accounting/supplies')}>Поставки</Button>
-          <Button onClick={() => navigate('/accounting/inventory')}>Инвентаризация</Button>
-          <Button onClick={() => navigate('/accounting/movements')}>Движения</Button>
-          <Button onClick={() => navigate('/accounting/control')}>Контроль</Button>
-          {(profile === 'FULL' || profile === 'FINANCIER') && (
-            <Button onClick={() => navigate('/accounting/audit')}>Аудит</Button>
-          )}
-          <Button onClick={() => download('csv')}>CSV</Button>
-          <Button onClick={() => download('xlsx')}>Excel</Button>
-        </Space>
-      </Space>
+      <AccountingNav
+        extra={(
+          <>
+            <Button onClick={() => download('csv')}>CSV</Button>
+            <Button onClick={() => download('xlsx')}>Excel</Button>
+          </>
+        )}
+      />
+      <Title level={isMobile ? 5 : 4} style={{ marginBottom: 16 }}>Сводка</Title>
       <PeriodFilter
         preset={preset}
         onChange={(next) => {
@@ -90,7 +95,7 @@ export function AccountingSummaryPage() {
         {showCost && (
           <>
             <Col xs={24} sm={12} md={6}>
-              <Card loading={isLoading}><Statistic title="COGS" value={data?.cogs?.total} formatter={(v) => <Money value={Number(v)} />} /></Card>
+              <Card loading={isLoading}><Statistic title="Себестоимость" value={data?.cogs?.total} formatter={(v) => <Money value={Number(v)} />} /></Card>
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Card loading={isLoading}><Statistic title="Валовая прибыль" value={data?.grossProfit} formatter={(v) => <Money value={Number(v)} />} /></Card>
@@ -98,7 +103,7 @@ export function AccountingSummaryPage() {
           </>
         )}
         <Col xs={24} sm={12} md={6}>
-          <Card loading={isLoading}><Statistic title="Оплаты (net)" value={data?.payments.net} formatter={(v) => <Money value={Number(v)} />} /></Card>
+          <Card loading={isLoading}><Statistic title="Оплаты (нетто)" value={data?.payments.net} formatter={(v) => <Money value={Number(v)} />} /></Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
           <Card loading={isLoading}><Statistic title="Расхождение" value={data?.paymentDifference} formatter={(v) => <Money value={Number(v)} />} /></Card>

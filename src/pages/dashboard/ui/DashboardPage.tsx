@@ -346,7 +346,7 @@ function AccountingWidgets() {
         <Col xs={12} md={6}><Statistic title="Выручка" value={data?.revenue.net} formatter={(v) => formatPrice(Number(v))} /></Col>
         <Col xs={12} md={6}><Statistic title="Доставка" value={data?.deliveryRevenue} formatter={(v) => formatPrice(Number(v))} /></Col>
         <Col xs={12} md={6}><Statistic title="Прибыль" value={data?.grossProfit} formatter={(v) => formatPrice(Number(v))} /></Col>
-        <Col xs={12} md={6}><Statistic title="Оплаты net" value={data?.payments.net} formatter={(v) => formatPrice(Number(v))} /></Col>
+        <Col xs={12} md={6}><Statistic title="Оплаты (нетто)" value={data?.payments.net} formatter={(v) => formatPrice(Number(v))} /></Col>
       </Row>
     </Card>
   );

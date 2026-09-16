@@ -4,7 +4,7 @@ import { Card, Table, Typography, Grid, Empty, Alert, Select } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { getProfile } from '@/entities/user';
 import { getAccountingSales, resolveClientProfile, canSeeCost, type AccountingSaleRow } from '@/entities/accounting';
-import { accountingKeys, PeriodFilter, Money, periodToQuery } from '@/features/accounting';
+import { accountingKeys, PeriodFilter, Money, periodToQuery, AccountingNav, saleTypeLabel } from '@/features/accounting';
 import type { PeriodPreset } from '@/features/accounting';
 import { getApiMessage, formatDate } from '@/shared/lib';
 
@@ -27,7 +27,7 @@ export function AccountingSalesPage() {
     { title: 'Дата', dataIndex: 'soldAt', render: (v: string) => formatDate(v) },
     { title: 'Товар', dataIndex: 'productName', ellipsis: true },
     { title: 'Склад', dataIndex: 'warehouseName', ellipsis: true },
-    { title: 'Тип', dataIndex: 'saleType', width: 90 },
+    { title: 'Тип', dataIndex: 'saleType', width: 140, render: (v: string) => saleTypeLabel(v) },
     {
       title: 'Заказ',
       dataIndex: 'orderNumber',
@@ -41,10 +41,16 @@ export function AccountingSalesPage() {
     ] : []),
   ];
 
-  if (error) return <Alert type="error" message={getApiMessage(error)} />;
+  if (error) return (
+    <div>
+      <AccountingNav />
+      <Alert type="error" message={getApiMessage(error)} />
+    </div>
+  );
 
   return (
     <div>
+      <AccountingNav />
       <Title level={isMobile ? 5 : 4}>Продажи</Title>
       <PeriodFilter
         preset={preset}
@@ -62,7 +68,7 @@ export function AccountingSalesPage() {
         options={[
           { value: 'ORDER', label: 'Заказ' },
           { value: 'STOP', label: 'Фургон' },
-          { value: 'DIRECT', label: 'Прямая' },
+          { value: 'DIRECT', label: 'Прямая продажа' },
         ]}
       />
       <Card>
