@@ -6,6 +6,7 @@ export type {
   ProductsListResponse,
 } from './model/types';
 export { getProductDisplayPrices } from './model/display-prices';
+export { isWeightBasedProduct, categoryIsWeightBased, categoriesSelectionIsWeightBased, weightBasedBoxPrice } from './model/weight-based';
 export { MODERATION_STATUS_LABELS } from './model/constants';
 export { getProducts, getProductById, createProduct, updateProduct, deleteProduct, getCategories, moderateProduct, uploadProductImage } from './api/product-api';
 export type { ModerateProductPayload } from './api/product-api';

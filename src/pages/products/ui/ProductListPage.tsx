@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Table, Button, Space, Tag, Typography, Modal, message, Select, Input, Grid } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, EyeOutlined } from '@ant-design/icons';
-import { getProducts, deleteProduct, MODERATION_STATUS_LABELS, getProductDisplayPrices, moderateProduct } from '@/entities/product';
+import { getProducts, deleteProduct, MODERATION_STATUS_LABELS, getProductDisplayPrices, isWeightBasedProduct, weightBasedBoxPrice, moderateProduct } from '@/entities/product';
 import type { Product, ProductModerationStatus } from '@/entities/product';
 import { getProfile } from '@/entities/user';
 import { formatPrice, getApiMessage } from '@/shared/lib';
@@ -64,7 +64,10 @@ export function ProductListPage() {
 
   const handleQuickApprove = (row: Product) => {
     const price = row.supplierProposedPrice ?? row.price;
-    const boxPrice = row.supplierProposedBoxPrice ?? row.boxPrice ?? row.boxInfo?.boxPrice ?? price * row.itemsPerBox;
+    const itemsPerBox = row.itemsPerBox || 1;
+    const boxPrice = isWeightBasedProduct(row)
+      ? weightBasedBoxPrice(price, itemsPerBox)
+      : (row.supplierProposedBoxPrice ?? row.boxPrice ?? row.boxInfo?.boxPrice ?? price * itemsPerBox);
     moderateMutation.mutate({ id: row.id, payload: { action: 'approve', price, boxPrice } });
   };
 

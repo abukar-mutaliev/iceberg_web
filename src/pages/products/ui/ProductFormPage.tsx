@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, Form, Input, InputNumber, Button, Space, Typography, Upload, Image, message, Modal, Select, Grid } from 'antd';
 import { ArrowLeftOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { getProductById, createProduct, updateProduct, getCategories, uploadProductImage } from '@/entities/product';
+import { getProductById, createProduct, updateProduct, getCategories, uploadProductImage, categoriesSelectionIsWeightBased, isWeightBasedProduct, weightBasedBoxPrice } from '@/entities/product';
 import { getProfile, getSuppliers } from '@/entities/user';
 import { getWarehouses, getProductStock } from '@/entities/warehouse';
 import type { WarehouseLayoutItem } from '@/entities/warehouse';
@@ -18,7 +18,7 @@ import { WarehouseStockFields } from './WarehouseStockFields';
 const productSchema = z.object({
   name: z.string().min(2, 'От 2 до 100 символов').max(100),
   description: z.string().optional().default(''),
-  price: z.number().positive('Цена за штуку должна быть больше 0'),
+  price: z.number().positive('Цена должна быть больше 0'),
   itemsPerBox: z.number().int().positive('Количество в коробке должно быть больше 0'),
   boxPrice: z.number().optional().nullable(),
   stockQuantity: z.number().int().min(0, 'Остаток не может быть отрицательным'),
@@ -199,6 +199,9 @@ export function ProductFormPage() {
     },
   });
 
+  const selectedCategoryIds = form.watch('categoryIds');
+  const fish = categoriesSelectionIsWeightBased(categories, selectedCategoryIds);
+
   useEffect(() => {
     if (!product) return;
 
@@ -206,9 +209,12 @@ export function ProductFormPage() {
     const priceForForm = isSupplier
       ? (product.supplierProposedPrice ?? product.price)
       : product.price;
-    const boxPriceForForm = isSupplier
+    const storedBoxPrice = isSupplier
       ? (product.supplierProposedBoxPrice ?? product.boxPrice ?? product.boxInfo?.boxPrice ?? undefined)
       : (product.boxPrice ?? product.boxInfo?.boxPrice ?? undefined);
+    const boxPriceForForm = isWeightBasedProduct(product)
+      ? weightBasedBoxPrice(priceForForm, product.itemsPerBox || 1)
+      : storedBoxPrice;
 
     form.reset({
       name: product.name,
@@ -468,7 +474,7 @@ export function ProductFormPage() {
 
           <Space wrap size={isMobile ? 'middle' : 'large'} style={{ width: '100%' }}>
             <Form.Item
-              label="Цена за штуку (₽)"
+              label={fish ? 'Цена за кг (₽)' : 'Цена за штуку (₽)'}
               required
               validateStatus={form.formState.errors.price ? 'error' : undefined}
               help={form.formState.errors.price?.message}
@@ -493,7 +499,7 @@ export function ProductFormPage() {
               />
             </Form.Item>
             <Form.Item
-              label="Штук в коробке"
+              label={fish ? 'Кг в коробке' : 'Штук в коробке'}
               required
               validateStatus={form.formState.errors.itemsPerBox ? 'error' : undefined}
               help={form.formState.errors.itemsPerBox?.message}
@@ -523,7 +529,7 @@ export function ProductFormPage() {
             <Form.Item
               label="Цена за коробку (₽)"
               validateStatus={form.formState.errors.boxPrice ? 'error' : undefined}
-              help={form.formState.errors.boxPrice?.message}
+              help={form.formState.errors.boxPrice?.message ?? (fish ? 'Цена за кг × кг в коробке' : undefined)}
             >
               <Controller
                 name="boxPrice"

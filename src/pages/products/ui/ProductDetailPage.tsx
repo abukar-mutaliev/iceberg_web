@@ -11,7 +11,7 @@ import {
   CloseCircleOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
-import { getProductById, deleteProduct, getProductDisplayPrices, moderateProduct } from '@/entities/product';
+import { getProductById, deleteProduct, getProductDisplayPrices, isWeightBasedProduct, weightBasedBoxPrice, moderateProduct } from '@/entities/product';
 import { getProfile } from '@/entities/user';
 import { getProductStock, getWarehouses } from '@/entities/warehouse';
 import type { ProductWarehouseStockRow } from '@/entities/warehouse';
@@ -122,6 +122,8 @@ function InfoCard({
   availableToOrder?: number;
 }) {
   const mod = MODERATION_CONFIG[product.moderationStatus];
+  const fish = isWeightBasedProduct(product);
+  const unitLabel = fish ? 'кг' : 'шт.';
   const { unitPrice, boxPrice: displayBoxPrice } = getProductDisplayPrices(product, { viewerRole });
   const showApprovedUnderProposal =
     viewerRole === 'SUPPLIER' &&
@@ -215,7 +217,9 @@ function InfoCard({
           }}
         >
           <div>
-            <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>Цена за штуку</Text>
+            <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>
+              {fish ? 'Цена за кг' : 'Цена за штуку'}
+            </Text>
             <Text strong style={{ color: '#4f46e5', fontSize: isMobile ? 18 : 22, lineHeight: 1.3 }}>
               {unitPrice.toLocaleString('ru-RU')} ₽
             </Text>
@@ -231,7 +235,7 @@ function InfoCard({
           <div>
             <Text style={{ color: '#64748b', fontSize: isMobile ? 11 : 12, display: 'block' }}>В коробке</Text>
             <Text strong style={{ color: '#0f172a', fontSize: isMobile ? 17 : 20, lineHeight: 1.3 }}>
-              {product.itemsPerBox} шт.
+              {product.itemsPerBox} {fish ? 'кг' : 'шт.'}
             </Text>
           </div>
           <div>
@@ -243,7 +247,7 @@ function InfoCard({
         </div>
         {showApprovedUnderProposal ? (
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
-            Утверждённые на витрине до модерации: {product.price.toLocaleString('ru-RU')} ₽ / шт.
+            Утверждённые на витрине до модерации: {product.price.toLocaleString('ru-RU')} ₽ / {unitLabel}
             {product.boxPrice != null ? ` · коробка ${product.boxPrice.toLocaleString('ru-RU')} ₽` : ''}
           </Text>
         ) : null}
@@ -258,7 +262,7 @@ function InfoCard({
         ) : null}
         {product.boxInfo?.minimumOrder ? (
           <Descriptions.Item label="Минимальный заказ">
-            {product.boxInfo.minimumOrder} шт.
+            {product.boxInfo.minimumOrder} {fish ? 'кор.' : 'шт.'}
           </Descriptions.Item>
         ) : null}
         {viewerRole !== 'SUPPLIER' && product.supplierProposedPrice != null ? (
@@ -360,7 +364,9 @@ export function ProductDetailPage() {
   const handleApproveOpen = () => {
     if (!product) return;
     const proposedPrice = product.supplierProposedPrice ?? product.price;
-    const proposedBoxPrice = product.supplierProposedBoxPrice ?? product.boxPrice ?? product.boxInfo?.boxPrice;
+    const proposedBoxPrice = isWeightBasedProduct(product)
+      ? weightBasedBoxPrice(proposedPrice, product.itemsPerBox || 1)
+      : (product.supplierProposedBoxPrice ?? product.boxPrice ?? product.boxInfo?.boxPrice);
     approveForm.setFieldsValue({ price: proposedPrice, boxPrice: proposedBoxPrice ?? undefined });
     setApproveModalOpen(true);
   };
@@ -605,7 +611,7 @@ export function ProductDetailPage() {
         </Paragraph>
         {product.supplierProposedPrice != null && (
           <Paragraph style={{ margin: '0 0 12px', color: '#64748b', fontSize: 13 }}>
-            Предложено поставщиком: <Text strong>{product.supplierProposedPrice.toLocaleString('ru-RU')} ₽</Text> / шт.
+            Предложено поставщиком: <Text strong>{product.supplierProposedPrice.toLocaleString('ru-RU')} ₽</Text> / {isWeightBasedProduct(product) ? 'кг' : 'шт.'}
             {product.supplierProposedBoxPrice != null && (
               <>, коробка <Text strong>{product.supplierProposedBoxPrice.toLocaleString('ru-RU')} ₽</Text></>
             )}
@@ -614,7 +620,7 @@ export function ProductDetailPage() {
         <Form form={approveForm} layout="vertical">
           <Form.Item
             name="price"
-            label="Финальная цена за штуку (₽)"
+            label={isWeightBasedProduct(product) ? 'Финальная цена за кг (₽)' : 'Финальная цена за штуку (₽)'}
             rules={[{ required: true, message: 'Обязательно' }, { type: 'number', min: 0.01, message: 'Должна быть больше 0' }]}
           >
             <InputNumber min={0.01} step={0.01} style={{ width: '100%' }} onChange={handleUnitPriceChange} />

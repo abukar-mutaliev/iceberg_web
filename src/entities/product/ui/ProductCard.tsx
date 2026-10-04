@@ -3,6 +3,7 @@ import { Tag, Typography } from 'antd';
 import { buildImageUrl } from '@/shared/lib';
 import type { Product } from '../model/types';
 import { getProductDisplayPrices } from '../model/display-prices';
+import { isWeightBasedProduct } from '../model/weight-based';
 
 interface ProductCardProps {
   product: Product;
@@ -23,6 +24,7 @@ export function ProductCard({ product, onClick, viewerRole }: ProductCardProps) 
   const imageSrc = product.images?.[0] ? buildImageUrl(product.images[0]) : null;
   const hasImage = Boolean(imageSrc) && !imgError;
 
+  const fish = isWeightBasedProduct(product);
   const { unitPrice, boxPrice: displayBoxPrice } = getProductDisplayPrices(product, { viewerRole });
   const price =
     typeof unitPrice === 'number'
@@ -31,7 +33,7 @@ export function ProductCard({ product, onClick, viewerRole }: ProductCardProps) 
 
   const stock =
     typeof product.stockQuantity === 'number'
-      ? `${product.stockQuantity.toLocaleString('ru-RU')} шт.`
+      ? `${product.stockQuantity.toLocaleString('ru-RU')} ${fish ? 'кор.' : 'шт.'}`
       : '—';
 
   const modStatus = product.moderationStatus ? STATUS_CONFIG[product.moderationStatus] : null;
@@ -136,7 +138,7 @@ export function ProductCard({ product, onClick, viewerRole }: ProductCardProps) 
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography.Text style={{ color: '#64748b', fontSize: 12 }}>Цена</Typography.Text>
+            <Typography.Text style={{ color: '#64748b', fontSize: 12 }}>{fish ? 'Цена за кг' : 'Цена за шт.'}</Typography.Text>
             <Typography.Text strong style={{ color: '#0f172a', fontSize: 15 }}>
               {price}
             </Typography.Text>
@@ -149,7 +151,9 @@ export function ProductCard({ product, onClick, viewerRole }: ProductCardProps) 
 
           {displayBoxPrice != null && product.itemsPerBox && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography.Text style={{ color: '#64748b', fontSize: 12 }}>Коробка ({product.itemsPerBox} шт.)</Typography.Text>
+              <Typography.Text style={{ color: '#64748b', fontSize: 12 }}>
+                Коробка ({product.itemsPerBox} {fish ? 'кг' : 'шт.'})
+              </Typography.Text>
               <Typography.Text style={{ color: '#334155', fontSize: 13 }}>
                 {displayBoxPrice.toLocaleString('ru-RU')} ₽
               </Typography.Text>

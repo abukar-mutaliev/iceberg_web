@@ -5,6 +5,7 @@ export interface Category {
   name: string;
   description?: string | null;
   slug?: string;
+  isWeightBased?: boolean;
 }
 
 export interface ProductSupplier {
@@ -20,6 +21,8 @@ export interface BoxInfo {
   availableBoxes: number;
   totalItems: number;
   minimumOrder: number;
+  isWeightBased?: boolean;
+  quantityUnit?: 'kg' | 'pcs';
 }
 
 export interface Product {
