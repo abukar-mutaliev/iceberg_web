@@ -11,6 +11,7 @@ import { WarehousesListPage, WarehouseDetailPage } from '@/pages/warehouses';
 import { ClientAccessPage } from '@/pages/client-access';
 import { UserCreatePage, UserDetailPage, UserListPage } from '@/pages/users';
 import { StaffApplicationsPage } from '@/pages/staff-applications';
+import { OrdersListPage, OrderDetailPage } from '@/pages/orders';
 import { MainLayout } from '@/widgets/layout';
 import {
   AccountingSummaryPage,
@@ -42,6 +43,22 @@ export function AppRouter() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route
+          path="orders"
+          element={(
+            <RoleGate roles={['ADMIN']}>
+              <OrdersListPage />
+            </RoleGate>
+          )}
+        />
+        <Route
+          path="orders/:id"
+          element={(
+            <RoleGate roles={['ADMIN']}>
+              <OrderDetailPage />
+            </RoleGate>
+          )}
+        />
         <Route path="products" element={<ProductListPage />} />
         <Route path="products/new" element={<ProductFormPage />} />
         <Route path="products/:id" element={<ProductDetailPage />} />

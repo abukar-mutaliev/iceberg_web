@@ -37,6 +37,7 @@ import type { Feedback } from '@/entities/feedback';
 import { getAccountingSummary, resolveClientProfile } from '@/entities/accounting';
 import { formatPrice } from '@/shared/lib';
 
+import { OrderQueueCards } from '@/features/order-admin';
 import { getCriticalStock, getWarehousesList } from '../api/dashboard-api';
 import type { CriticalStockItem, WarehouseItem } from '../api/dashboard-api';
 
@@ -480,6 +481,8 @@ function AdminDashboard({
           </Tag>
         )}
       </Title>
+
+      <OrderQueueCards />
 
       <AccountingWidgets />
 

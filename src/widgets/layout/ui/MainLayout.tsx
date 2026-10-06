@@ -15,11 +15,13 @@ import {
   AuditOutlined,
   CalculatorOutlined,
   InboxOutlined,
+  ShoppingOutlined,
 } from '@ant-design/icons';
 import { logout } from '@/features/auth';
 import { useQuery } from '@tanstack/react-query';
 import { getProfile } from '@/entities/user';
 import { getStaffApplicationStats, userManagementKeys } from '@/features/user-management';
+import { getOrders, orderAdminKeys } from '@/features/order-admin';
 import logo from '@/assets/logo/logo.png';
 
 const { Header, Sider, Content } = Layout;
@@ -57,9 +59,28 @@ export function MainLayout() {
 
   const pendingApplications = applicationStats?.pending ?? 0;
 
+  const { data: awaitingOrders } = useQuery({
+    queryKey: orderAdminKeys.list({ status: 'AWAITING_CONFIRMATION', page: 1, limit: 1 }),
+    queryFn: () => getOrders({ status: 'AWAITING_CONFIRMATION', page: 1, limit: 1 }),
+    enabled: isAdmin,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const awaitingConfirmationCount = awaitingOrders?.pagination.total ?? 0;
+
   const menuItems = isAdmin
     ? [
         ...BASE_MENU,
+        {
+          key: '/orders',
+          label: 'Заказы',
+          icon: (
+            <Badge count={awaitingConfirmationCount} size="small" offset={[4, 0]}>
+              <ShoppingOutlined style={{ color: 'inherit' }} />
+            </Badge>
+          ),
+        },
         { key: '/accounting', label: 'Бухгалтерия', icon: <CalculatorOutlined /> },
         { key: '/warehouses', label: 'Склады', icon: <BankOutlined /> },
         { key: '/users', label: 'Пользователи', icon: <TeamOutlined /> },
