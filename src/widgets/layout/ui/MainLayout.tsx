@@ -18,13 +18,17 @@ import {
   ShoppingOutlined,
 } from '@ant-design/icons';
 import { logout } from '@/features/auth';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { getProfile } from '@/entities/user';
 import { getStaffApplicationStats, userManagementKeys } from '@/features/user-management';
 import { getOrders, orderAdminKeys } from '@/features/order-admin';
 import logo from '@/assets/logo/logo.png';
 
 const { Header, Sider, Content } = Layout;
+
+// Весовые ждут взвешивания (AWAITING_CONFIRMATION). Обычные после оплаты
+// почти сразу уходят в PICKING; PENDING остаётся, если автопостановка не сработала.
+const ORDER_BADGE_STATUSES = ['AWAITING_CONFIRMATION', 'PENDING', 'PICKING'] as const;
 
 const BASE_MENU = [
   { key: '/',          label: 'Кабинет',  icon: <HomeOutlined /> },
@@ -59,15 +63,20 @@ export function MainLayout() {
 
   const pendingApplications = applicationStats?.pending ?? 0;
 
-  const { data: awaitingOrders } = useQuery({
-    queryKey: orderAdminKeys.list({ status: 'AWAITING_CONFIRMATION', page: 1, limit: 1 }),
-    queryFn: () => getOrders({ status: 'AWAITING_CONFIRMATION', page: 1, limit: 1 }),
-    enabled: isAdmin,
-    staleTime: 30_000,
-    refetchInterval: 30_000,
+  const orderBadgeQueries = useQueries({
+    queries: ORDER_BADGE_STATUSES.map((status) => ({
+      queryKey: orderAdminKeys.list({ status, page: 1, limit: 1 }),
+      queryFn: () => getOrders({ status, page: 1, limit: 1 }),
+      enabled: isAdmin,
+      staleTime: 30_000,
+      refetchInterval: 30_000,
+    })),
   });
 
-  const awaitingConfirmationCount = awaitingOrders?.pagination.total ?? 0;
+  const orderBadgeCount = orderBadgeQueries.reduce(
+    (sum, query) => sum + (query.data?.pagination.total ?? 0),
+    0,
+  );
 
   const menuItems = isAdmin
     ? [
@@ -76,7 +85,7 @@ export function MainLayout() {
           key: '/orders',
           label: 'Заказы',
           icon: (
-            <Badge count={awaitingConfirmationCount} size="small" offset={[4, 0]}>
+            <Badge count={orderBadgeCount} size="small" offset={[4, 0]}>
               <ShoppingOutlined style={{ color: 'inherit' }} />
             </Badge>
           ),
