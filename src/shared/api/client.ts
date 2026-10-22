@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import axios, { CanceledError, type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { env } from '@/shared/config';
 import { tokenStorage } from './token-storage';
 
@@ -6,13 +6,17 @@ const BASE_URL = env.API_BASE_URL;
 
 /**
  * Базовый HTTP-клиент с подстановкой Bearer и обработкой 401 (refresh).
- * Один refresh на поколение сессии. Ответ старого refresh не перезаписывает
- * токены, если за это время вышли или вошли другим аккаунтом.
+ * Запрос запоминает поколение сессии. Ответ прошлого аккаунта не попадает
+ * в панель, даже если он пришёл уже после нового входа.
  */
-type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
+type RetryConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+  sessionEpoch?: number;
+};
 
 let refreshPromise: Promise<string | null> | null = null;
 let refreshEpoch = -1;
+const inflight = new Set<AbortController>();
 
 function readBearer(config: InternalAxiosRequestConfig): string | null {
   const headers = config.headers as { Authorization?: unknown; get?: (name: string) => unknown };
@@ -28,6 +32,17 @@ function redirectToLogin(): void {
   window.location.href = '/login';
 }
 
+function isCurrentRequest(config: RetryConfig | undefined): boolean {
+  return config?.sessionEpoch === undefined || tokenStorage.isCurrent(config.sessionEpoch);
+}
+
+function abortInflight(): void {
+  inflight.forEach((controller) => controller.abort());
+  inflight.clear();
+}
+
+tokenStorage.onSessionChange(abortInflight);
+
 async function refreshTokens(): Promise<string | null> {
   const epoch = tokenStorage.currentEpoch();
   if (refreshPromise && refreshEpoch === epoch) return refreshPromise;
@@ -42,7 +57,8 @@ async function refreshTokens(): Promise<string | null> {
         `${BASE_URL}/api/auth/refresh-token`,
         { refreshToken: refresh }
       );
-      if (!tokenStorage.isCurrent(epoch)) return null;
+      // Пока ждали ответ, успели выйти или войти другим аккаунтом.
+      if (!tokenStorage.isCurrent(epoch) || tokenStorage.getRefreshToken() !== refresh) return null;
 
       const payload = (data?.data ?? data) as { accessToken?: string; refreshToken?: string };
       const newAccess = payload?.accessToken;
@@ -52,10 +68,13 @@ async function refreshTokens(): Promise<string | null> {
         return null;
       }
 
+      if (tokenStorage.getRefreshToken() !== refresh) return null;
       const saved = tokenStorage.writeIfCurrent(epoch, newAccess, newRefresh ?? refresh);
       return saved ? newAccess : null;
     } catch {
-      tokenStorage.discardIfCurrent(epoch);
+      if (tokenStorage.isCurrent(epoch) && tokenStorage.getRefreshToken() === refresh) {
+        tokenStorage.discardIfCurrent(epoch);
+      }
       return null;
     } finally {
       if (refreshEpoch === epoch) refreshPromise = null;
@@ -66,11 +85,24 @@ async function refreshTokens(): Promise<string | null> {
   return promise;
 }
 
-function onRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+function onRequest(config: RetryConfig): RetryConfig {
+  const epoch = tokenStorage.currentEpoch();
+  config.sessionEpoch = epoch;
+
   const token = tokenStorage.getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else if (typeof config.headers.delete === 'function') {
+    config.headers.delete('Authorization');
+  } else {
+    delete config.headers.Authorization;
   }
+
+  const controller = new AbortController();
+  config.signal = controller.signal;
+  inflight.add(controller);
+  controller.signal.addEventListener('abort', () => inflight.delete(controller), { once: true });
+
   // FormData: не задавать Content-Type — браузер сам установит multipart/form-data с boundary
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
@@ -78,10 +110,18 @@ function onRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConf
   return config;
 }
 
-async function onResponseError(error: unknown): Promise<unknown> {
+function onResponse(response: AxiosResponse): AxiosResponse {
+  const config = response.config as RetryConfig;
+  if (!isCurrentRequest(config)) {
+    throw new CanceledError('stale session');
+  }
+  return response;
+}
+
+async function onResponseError(error: unknown, client: AxiosInstance): Promise<unknown> {
   const axiosError = error as { response?: { status: number }; config?: RetryConfig };
   const config = axiosError.config;
-  if (axiosError.response?.status !== 401 || !config) {
+  if (axiosError.response?.status !== 401 || !config || !isCurrentRequest(config)) {
     return Promise.reject(error);
   }
 
@@ -101,10 +141,10 @@ async function onResponseError(error: unknown): Promise<unknown> {
 
   const epoch = tokenStorage.currentEpoch();
   const newAccess = await refreshTokens();
-  if (newAccess && tokenStorage.isCurrent(epoch)) {
+  if (newAccess && tokenStorage.isCurrent(epoch) && config.sessionEpoch === epoch) {
     config._retry = true;
     config.headers.Authorization = `Bearer ${newAccess}`;
-    return axios.request(config);
+    return client.request(config);
   }
 
   if (tokenStorage.getAccessToken()) {
@@ -119,9 +159,12 @@ export function createApiClient(): AxiosInstance {
   const client = axios.create({
     baseURL: BASE_URL,
     headers: { 'Content-Type': 'application/json' },
+    // Иначе браузер может отдать GET прошлого аккаунта по тому же URL.
+    adapter: 'fetch',
+    fetchOptions: { cache: 'no-store' },
   });
   client.interceptors.request.use(onRequest);
-  client.interceptors.response.use((r) => r, onResponseError);
+  client.interceptors.response.use(onResponse, (error) => onResponseError(error, client));
   return client;
 }
 

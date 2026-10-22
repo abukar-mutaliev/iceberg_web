@@ -5,8 +5,8 @@
  */
 const ACCESS_KEY = 'iceberg_supplier_access';
 const REFRESH_KEY = 'iceberg_supplier_refresh';
+const EPOCH_KEY = 'iceberg_supplier_epoch';
 
-let sessionEpoch = 0;
 const sessionListeners = new Set<() => void>();
 
 function safeGet(key: string): string | null {
@@ -33,6 +33,18 @@ function safeRemove(key: string): void {
   }
 }
 
+function readEpoch(): number {
+  const raw = safeGet(EPOCH_KEY);
+  const epoch = raw ? Number(raw) : 0;
+  return Number.isFinite(epoch) ? epoch : 0;
+}
+
+function bumpEpoch(): number {
+  const next = readEpoch() + 1;
+  safeSet(EPOCH_KEY, String(next));
+  return next;
+}
+
 function notifySessionChange(): void {
   sessionListeners.forEach((listener) => {
     try {
@@ -44,20 +56,19 @@ function notifySessionChange(): void {
 }
 
 function endSession(): void {
-  sessionEpoch += 1;
-  const hadSession = Boolean(safeGet(ACCESS_KEY) || safeGet(REFRESH_KEY));
+  bumpEpoch();
   safeRemove(ACCESS_KEY);
   safeRemove(REFRESH_KEY);
-  if (hadSession) notifySessionChange();
+  notifySessionChange();
 }
 
 export const tokenStorage = {
   currentEpoch(): number {
-    return sessionEpoch;
+    return readEpoch();
   },
 
   isCurrent(epoch: number): boolean {
-    return epoch === sessionEpoch;
+    return epoch === readEpoch();
   },
 
   onSessionChange(listener: () => void): () => void {
@@ -69,7 +80,7 @@ export const tokenStorage = {
 
   /** Новая сессия. Старый refresh больше не имеет права писать токены. */
   replaceSession(access: string, refresh: string): void {
-    sessionEpoch += 1;
+    bumpEpoch();
     safeSet(ACCESS_KEY, access);
     safeSet(REFRESH_KEY, refresh);
     notifySessionChange();
@@ -77,7 +88,7 @@ export const tokenStorage = {
 
   /** Запись пары токенов только если это всё ещё та же сессия, которая начала refresh. */
   writeIfCurrent(epoch: number, access: string, refresh: string): boolean {
-    if (epoch !== sessionEpoch) return false;
+    if (epoch !== readEpoch()) return false;
     safeSet(ACCESS_KEY, access);
     safeSet(REFRESH_KEY, refresh);
     return true;
@@ -85,7 +96,7 @@ export const tokenStorage = {
 
   /** Сбросить сессию, только если за время refresh пользователь не вошёл заново. */
   discardIfCurrent(epoch: number): void {
-    if (epoch !== sessionEpoch) return;
+    if (epoch !== readEpoch()) return;
     endSession();
   },
 

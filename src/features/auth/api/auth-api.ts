@@ -4,8 +4,15 @@ import { tokenStorage } from '@/shared/api';
 
 const BASE = env.API_BASE_URL;
 
-function persistSession(access?: string, refresh?: string): void {
-  if (!access || !refresh) return;
+let authAttempt = 0;
+
+function beginAuthAttempt(): number {
+  authAttempt += 1;
+  return authAttempt;
+}
+
+function persistSession(attempt: number, access?: string, refresh?: string): void {
+  if (attempt !== authAttempt || !access || !refresh) return;
   tokenStorage.replaceSession(access, refresh);
 }
 
@@ -29,9 +36,11 @@ export interface LoginResponse {
  * Бэкенд: POST /api/auth/login, поле email принимает и email, и номер телефона.
  */
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
+  const attempt = beginAuthAttempt();
   const { data } = await axios.post<LoginResponse>(`${BASE}/api/auth/login`, payload);
   const payloadData = data?.data ?? (data as unknown as LoginResponse['data']);
   persistSession(
+    attempt,
     payloadData?.accessToken ?? (payloadData as { access_token?: string })?.access_token,
     payloadData?.refreshToken ?? (payloadData as { refresh_token?: string })?.refresh_token,
   );
@@ -64,12 +73,13 @@ export async function registerByEmailInitiate(payload: RegisterEmailInitiatePayl
 
 /** Регистрация по email: шаг 2 — ввод кода. Бэкенд: POST /api/auth/register/complete */
 export async function registerByEmailComplete(registrationToken: string, verificationCode: string): Promise<LoginResponse> {
+  const attempt = beginAuthAttempt();
   const { data } = await axios.post<LoginResponse>(`${BASE}/api/auth/register/complete`, {
     registrationToken,
     verificationCode,
   });
   const payloadData = data?.data ?? (data as unknown as LoginResponse['data']);
-  persistSession(payloadData?.accessToken, payloadData?.refreshToken);
+  persistSession(attempt, payloadData?.accessToken, payloadData?.refreshToken);
   return data;
 }
 
@@ -95,12 +105,13 @@ export async function registerByPhoneInitiate(payload: RegisterPhoneInitiatePayl
 
 /** Регистрация по телефону: шаг 2 — ввод кода. Бэкенд: POST /api/auth/complete-register-phone */
 export async function registerByPhoneComplete(registrationToken: string, verificationCode: string): Promise<LoginResponse> {
+  const attempt = beginAuthAttempt();
   const { data } = await axios.post<LoginResponse>(`${BASE}/api/auth/complete-register-phone`, {
     registrationToken,
     verificationCode,
   });
   const payloadData = data?.data ?? (data as unknown as LoginResponse['data']);
-  persistSession(payloadData?.accessToken, payloadData?.refreshToken);
+  persistSession(attempt, payloadData?.accessToken, payloadData?.refreshToken);
   return data;
 }
 
