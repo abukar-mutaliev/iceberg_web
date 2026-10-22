@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { tokenStorage } from '@/shared/api';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -11,6 +12,11 @@ const queryClient = new QueryClient({
 });
 
 export function QueryProvider({ children }: { children: ReactNode }) {
+  useEffect(() => tokenStorage.onSessionChange(() => {
+    void queryClient.cancelQueries();
+    queryClient.removeQueries();
+  }), []);
+
   return (
     <QueryClientProvider client={queryClient}>
       {children}

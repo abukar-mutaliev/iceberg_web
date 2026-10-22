@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -225,6 +225,17 @@ export function ClientAccessPage() {
     },
   });
 
+  const profileUnusable = Boolean(token)
+    && !isProfileLoading
+    && !isDistrictsLoading
+    && !isApplicationLoading
+    && (isProfileError || !user);
+
+  useEffect(() => {
+    if (!profileUnusable) return;
+    tokenStorage.endSession();
+  }, [profileUnusable]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/login', { replace: true });
@@ -255,7 +266,6 @@ export function ClientAccessPage() {
   }
 
   if (isProfileError || !user) {
-    tokenStorage.clear();
     return <Navigate to="/login" replace />;
   }
 

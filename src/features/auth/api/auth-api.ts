@@ -4,6 +4,11 @@ import { tokenStorage } from '@/shared/api';
 
 const BASE = env.API_BASE_URL;
 
+function persistSession(access?: string, refresh?: string): void {
+  if (!access || !refresh) return;
+  tokenStorage.replaceSession(access, refresh);
+}
+
 export interface LoginPayload {
   /** Email или номер телефона — бэкенд определяет по формату */
   email: string;
@@ -26,11 +31,10 @@ export interface LoginResponse {
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
   const { data } = await axios.post<LoginResponse>(`${BASE}/api/auth/login`, payload);
   const payloadData = data?.data ?? (data as unknown as LoginResponse['data']);
-  const access = payloadData?.accessToken ?? (payloadData as { access_token?: string })?.access_token;
-  const refresh = payloadData?.refreshToken ?? (payloadData as { refresh_token?: string })?.refresh_token;
-  if (access && refresh) {
-    tokenStorage.setTokens(access, refresh);
-  }
+  persistSession(
+    payloadData?.accessToken ?? (payloadData as { access_token?: string })?.access_token,
+    payloadData?.refreshToken ?? (payloadData as { refresh_token?: string })?.refresh_token,
+  );
   return data;
 }
 
@@ -65,11 +69,7 @@ export async function registerByEmailComplete(registrationToken: string, verific
     verificationCode,
   });
   const payloadData = data?.data ?? (data as unknown as LoginResponse['data']);
-  const access = payloadData?.accessToken;
-  const refresh = payloadData?.refreshToken;
-  if (access && refresh) {
-    tokenStorage.setTokens(access, refresh);
-  }
+  persistSession(payloadData?.accessToken, payloadData?.refreshToken);
   return data;
 }
 
@@ -100,29 +100,27 @@ export async function registerByPhoneComplete(registrationToken: string, verific
     verificationCode,
   });
   const payloadData = data?.data ?? (data as unknown as LoginResponse['data']);
-  const access = payloadData?.accessToken;
-  const refresh = payloadData?.refreshToken;
-  if (access && refresh) {
-    tokenStorage.setTokens(access, refresh);
-  }
+  persistSession(payloadData?.accessToken, payloadData?.refreshToken);
   return data;
 }
 
 /**
- * Выход: очистка токенов. Если на бэкенде есть logout — вызвать его.
+ * Выход: локальная сессия сбрасывается сразу, чтобы следующий вход
+ * не был затёрт ответом logout или старым refresh.
  */
 export async function logout(): Promise<void> {
+  const token = tokenStorage.getAccessToken();
+  const refresh = tokenStorage.getRefreshToken();
+  tokenStorage.endSession();
+  if (!token) return;
+
   try {
-    const token = tokenStorage.getAccessToken();
-    const refresh = tokenStorage.getRefreshToken();
-    if (token) {
-      await axios.post(
-        `${BASE}/api/auth/logout`,
-        refresh ? { refreshToken: refresh } : {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    }
-  } finally {
-    tokenStorage.clear();
+    await axios.post(
+      `${BASE}/api/auth/logout`,
+      refresh ? { refreshToken: refresh } : {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  } catch {
+    // локальная сессия уже завершена
   }
 }

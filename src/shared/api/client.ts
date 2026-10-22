@@ -6,36 +6,64 @@ const BASE_URL = env.API_BASE_URL;
 
 /**
  * Базовый HTTP-клиент с подстановкой Bearer и обработкой 401 (refresh).
- * Очередь запросов во время refresh — один одновременный refresh.
+ * Один refresh на поколение сессии. Ответ старого refresh не перезаписывает
+ * токены, если за это время вышли или вошли другим аккаунтом.
  */
+type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
+
 let refreshPromise: Promise<string | null> | null = null;
+let refreshEpoch = -1;
+
+function readBearer(config: InternalAxiosRequestConfig): string | null {
+  const headers = config.headers as { Authorization?: unknown; get?: (name: string) => unknown };
+  const raw = headers.get?.('Authorization') ?? headers.Authorization;
+  if (typeof raw !== 'string') return null;
+  const match = /^Bearer\s+(.+)$/i.exec(raw.trim());
+  return match?.[1] ?? null;
+}
+
+function redirectToLogin(): void {
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname === '/login') return;
+  window.location.href = '/login';
+}
 
 async function refreshTokens(): Promise<string | null> {
-  if (refreshPromise) return refreshPromise;
+  const epoch = tokenStorage.currentEpoch();
+  if (refreshPromise && refreshEpoch === epoch) return refreshPromise;
+
   const refresh = tokenStorage.getRefreshToken();
-  if (!refresh) return null;
-  refreshPromise = (async () => {
+  if (!refresh || !tokenStorage.isCurrent(epoch)) return null;
+
+  refreshEpoch = epoch;
+  const promise = (async () => {
     try {
       const { data } = await axios.post<{ data?: { accessToken?: string; refreshToken?: string }; accessToken?: string; refreshToken?: string }>(
         `${BASE_URL}/api/auth/refresh-token`,
         { refreshToken: refresh }
       );
+      if (!tokenStorage.isCurrent(epoch)) return null;
+
       const payload = (data?.data ?? data) as { accessToken?: string; refreshToken?: string };
       const newAccess = payload?.accessToken;
       const newRefresh = payload?.refreshToken;
-      if (newAccess) {
-        tokenStorage.setTokens(newAccess, newRefresh ?? refresh);
-        return newAccess;
+      if (!newAccess) {
+        tokenStorage.discardIfCurrent(epoch);
+        return null;
       }
-      return null;
+
+      const saved = tokenStorage.writeIfCurrent(epoch, newAccess, newRefresh ?? refresh);
+      return saved ? newAccess : null;
     } catch {
-      tokenStorage.clear();
+      tokenStorage.discardIfCurrent(epoch);
       return null;
     } finally {
-      refreshPromise = null;
+      if (refreshEpoch === epoch) refreshPromise = null;
     }
   })();
-  return refreshPromise;
+
+  refreshPromise = promise;
+  return promise;
 }
 
 function onRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
@@ -51,19 +79,40 @@ function onRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConf
 }
 
 async function onResponseError(error: unknown): Promise<unknown> {
-  const axiosError = error as { response?: { status: number }; config?: InternalAxiosRequestConfig };
-  if (axiosError.response?.status !== 401) {
+  const axiosError = error as { response?: { status: number }; config?: RetryConfig };
+  const config = axiosError.config;
+  if (axiosError.response?.status !== 401 || !config) {
     return Promise.reject(error);
   }
+
+  const sentToken = readBearer(config);
+  const currentToken = tokenStorage.getAccessToken();
+
+  // Ответ от запроса прошлого аккаунта. Не повторяем его и не трогаем новую сессию.
+  if (!sentToken || sentToken !== currentToken) {
+    return Promise.reject(error);
+  }
+
+  if (config._retry) {
+    tokenStorage.endSession();
+    redirectToLogin();
+    return Promise.reject(error);
+  }
+
+  const epoch = tokenStorage.currentEpoch();
   const newAccess = await refreshTokens();
-  if (!newAccess || !axiosError.config) {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
+  if (newAccess && tokenStorage.isCurrent(epoch)) {
+    config._retry = true;
+    config.headers.Authorization = `Bearer ${newAccess}`;
+    return axios.request(config);
+  }
+
+  if (tokenStorage.getAccessToken()) {
     return Promise.reject(error);
   }
-  axiosError.config.headers.Authorization = `Bearer ${newAccess}`;
-  return axios.request(axiosError.config);
+
+  redirectToLogin();
+  return Promise.reject(error);
 }
 
 export function createApiClient(): AxiosInstance {
