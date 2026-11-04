@@ -10,6 +10,7 @@ import {
   Row,
   Spin,
   Statistic,
+  Button,
   Table,
   Tag,
   Typography,
@@ -22,6 +23,7 @@ import {
   ClockCircleOutlined,
   CloseCircleOutlined,
   ExclamationCircleFilled,
+  RobotOutlined,
   ShopOutlined,
   StarFilled,
 } from '@ant-design/icons';
@@ -468,19 +470,24 @@ function AdminDashboard({
 
   return (
     <div>
-      <Title level={isMobile ? 5 : 4} style={{ marginBottom: 20 }}>
-        Панель управления
-        <br />
-        {isSuperAdmin ? (
-          <Tag color="purple" style={{ fontSize: 13, padding: '2px 10px', marginTop: 8 }}>
-            Суперадмин
-          </Tag>
-        ) : (
-          <Tag color="blue" style={{ fontSize: 13, padding: '2px 10px', marginTop: 8 }}>
-            Администратор
-          </Tag>
-        )}
-      </Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+        <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>
+          Панель управления
+          <br />
+          {isSuperAdmin ? (
+            <Tag color="purple" style={{ fontSize: 13, padding: '2px 10px', marginTop: 8 }}>
+              Суперадмин
+            </Tag>
+          ) : (
+            <Tag color="blue" style={{ fontSize: 13, padding: '2px 10px', marginTop: 8 }}>
+              Администратор
+            </Tag>
+          )}
+        </Title>
+        <Button icon={<RobotOutlined />} onClick={() => navigate('/ai-monitoring')}>
+          Мониторинг ИИ
+        </Button>
+      </div>
 
       <OrderQueueCards />
 

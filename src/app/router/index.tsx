@@ -3,6 +3,7 @@ import { ProtectedRoute } from '@/features/auth';
 import { RoleGate } from '@/features/user-management';
 import { LoginPage } from '@/pages/login';
 import { DashboardPage } from '@/pages/dashboard';
+import { AiMonitoringPage } from '@/pages/ai-monitoring';
 import { ProfilePage } from '@/pages/profile';
 import { ProductListPage, ProductFormPage, ProductDetailPage } from '@/pages/products';
 import { ReturnsListPage, ReturnDetailPage } from '@/pages/returns';
@@ -66,6 +67,14 @@ export function AppRouter() {
         <Route path="returns" element={<ReturnsListPage />} />
         <Route path="returns/:id" element={<ReturnDetailPage />} />
         <Route path="feedbacks" element={<FeedbacksPage />} />
+        <Route
+          path="ai-monitoring"
+          element={(
+            <RoleGate roles={['ADMIN']}>
+              <AiMonitoringPage />
+            </RoleGate>
+          )}
+        />
         <Route path="warehouses" element={<WarehousesListPage />} />
         <Route path="warehouses/:id" element={<WarehouseDetailPage />} />
         <Route

@@ -16,6 +16,7 @@ import {
   CalculatorOutlined,
   InboxOutlined,
   ShoppingOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import { logout } from '@/features/auth';
 import { useQuery, useQueries } from '@tanstack/react-query';
@@ -93,6 +94,7 @@ export function MainLayout() {
         { key: '/accounting', label: 'Бухгалтерия', icon: <CalculatorOutlined /> },
         { key: '/warehouses', label: 'Склады', icon: <BankOutlined /> },
         { key: '/users', label: 'Пользователи', icon: <TeamOutlined /> },
+        { key: '/ai-monitoring', label: 'Мониторинг ИИ', icon: <RobotOutlined /> },
         ...(isSuperAdmin
           ? [{
               key: '/staff-applications',
